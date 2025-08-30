@@ -1,0 +1,48 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Videos and animations
+*.mp4
+*.mov
+*.avi
+*.webm
+*.gif
+
+# Frames and images
+frames/
+*.png
+*.jpg
+*.jpeg
+
+# Media directory
+media/
+
+# LaTeX temporary files
+*.aux
+*.log
+*.out
+*.toc
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+
+# Manim parent repository
+manim/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

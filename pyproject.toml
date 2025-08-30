@@ -1,0 +1,9 @@
+[project]
+name = "manimflow"
+version = "0.1.0"
+description = "A pipeline for generating Manim animations in 3Blue1Brown style"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "manim>=0.19.0",
+]
