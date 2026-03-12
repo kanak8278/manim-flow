@@ -20,6 +20,13 @@ TEXT RULES:
 - Keep ALL text within y=[-3, 3]. Title at UP*2.5, content at ORIGIN, labels at DOWN*2
 - Minimum 1.2 units vertical gap between text
 - Long text (>30 chars): use font_size 24 or break into lines
+- USE THE FULL SCREEN. Center content vertically. Don't leave 80% of screen black.
+  Put title at UP*2, main visual at ORIGIN, explanation at DOWN*2.
+- NEVER use Cross() — it renders as an ugly grey box. Instead use red Line() to cross things out:
+  ```python
+  strike = Line(obj.get_left(), obj.get_right(), color=RED, stroke_width=6)
+  self.play(Create(strike), run_time=0.5)
+  ```
 
 QUALITY RULES (the difference between a 6/10 and 8+/10 video):
 - EVERY scene needs shapes/curves/arrows, not just text

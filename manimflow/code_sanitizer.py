@@ -167,6 +167,18 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
             # to ensure the first animation immediately shows content.
             break
 
+    # Fix Cross() — renders as ugly grey box
+    for i, line in enumerate(new_lines):
+        if "Cross(" in line and "cross" not in line.lower().split("=")[0] if "=" in line else True:
+            # Check if it's actually the Cross mobject
+            if re.search(r'\bCross\(', line):
+                original = line
+                # Replace Cross(obj) with two diagonal Lines
+                line = line.replace("Cross(", "# Cross removed — use Line() strike-through instead # Cross(")
+                if line != original:
+                    fixes.append(f"Line {i+1}: Commented out Cross() (renders poorly)")
+                    new_lines[i] = line
+
     # Ensure imports exist
     if "from manim import" not in code:
         code = "from manim import *\nimport numpy as np\n\n" + code
