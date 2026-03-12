@@ -13,6 +13,7 @@ from .evaluator import (
 from .spatial_analyzer import analyze_scene, print_spatial_analysis
 from .code_sanitizer import sanitize_code
 from .voiceover import generate_voiceover, merge_video_audio
+from .music import select_mood, generate_ambient_track, mix_audio_tracks
 from .code_editor import surgical_fix
 from .platform import PlatformConfig, get_platform_config, config_to_story_context
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
@@ -286,19 +287,37 @@ def generate_video(
     final_video_path = video_path
 
     if voiceover_result and voiceover_result.get("audio_path"):
-        _log("\n--- Step 5: Merging voiceover with video ---")
+        _log("\n--- Step 5: Audio production ---")
         try:
+            audio_path = voiceover_result["audio_path"]
+            audio_duration = voiceover_result.get("total_duration", 60)
+
+            # Generate background music
+            category = story.get("category", "formula")
+            mood = select_mood(category)
+            music_path = os.path.join(output_dir, "voiceover", "background_music.mp3")
+            music_result = generate_ambient_track(music_path, audio_duration + 5, mood=mood)
+
+            if music_result.get("success"):
+                _log(f"  Background music: {mood} ({audio_duration:.0f}s)")
+
+                # Mix voiceover + music with ducking
+                mixed_path = os.path.join(output_dir, "voiceover", "mixed_audio.mp3")
+                mix_result = mix_audio_tracks(audio_path, music_path, mixed_path)
+                if mix_result.get("success"):
+                    audio_path = mixed_path
+                    _log(f"  Mixed audio with ducking")
+
+            # Merge final audio with video
             final_path = os.path.join(output_dir, "final_with_voiceover.mp4")
-            merge_result = merge_video_audio(
-                video_path, voiceover_result["audio_path"], final_path
-            )
+            merge_result = merge_video_audio(video_path, audio_path, final_path)
             if merge_result["success"]:
                 final_video_path = final_path
                 _log(f"  Final video: {final_path}")
             else:
                 _log(f"  Merge failed: {merge_result.get('error', '')[:100]}")
         except Exception as e:
-            _log(f"  Merge error: {e}")
+            _log(f"  Audio production error: {e}")
 
     _log(f"\n  Video ready: {final_video_path}")
 

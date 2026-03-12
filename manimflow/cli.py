@@ -74,9 +74,9 @@ Categories:
     )
     parser.add_argument(
         "--voice", "-v",
-        choices=["male_us", "female_us", "male_uk", "female_uk", "male_au"],
-        default=None,
-        help="Add voiceover narration (default: no voiceover)",
+        choices=["male_us", "female_us", "male_uk", "female_uk", "male_au", "none"],
+        default="male_us",
+        help="Voiceover voice (default: male_us, use 'none' to disable)",
     )
     parser.add_argument(
         "--max-fix-attempts",
@@ -116,7 +116,7 @@ Categories:
         quality=args.quality,
         duration=args.duration,
         category=args.category,
-        voice=args.voice,
+        voice=args.voice if args.voice != "none" else None,
         max_fix_attempts=args.max_fix_attempts,
         max_quality_loops=args.max_quality_loops,
         preview=args.preview,
