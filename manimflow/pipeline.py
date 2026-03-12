@@ -14,6 +14,8 @@ from .spatial_analyzer import analyze_scene, print_spatial_analysis
 from .code_sanitizer import sanitize_code
 from .voiceover import generate_voiceover, merge_video_audio
 from .code_editor import surgical_fix
+from .platform import PlatformConfig, get_platform_config, config_to_story_context
+from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
 
 
 def generate_video(
@@ -22,6 +24,7 @@ def generate_video(
     quality: str = "h",
     duration: int = 120,
     category: str | None = None,
+    platform: str | None = None,
     voice: str | None = None,
     max_fix_attempts: int = 5,
     max_quality_loops: int = 2,
@@ -43,7 +46,17 @@ def generate_video(
     _log("  ManimFlow Video Generation Pipeline")
     _log("======================================")
     _log(f"\nTopic: {topic}")
-    _log("\n--- Step 1/4: Generating story script ---")
+
+    # Load platform config
+    platform_config = get_platform_config(platform) if platform else PlatformConfig(duration_seconds=duration)
+    if platform:
+        duration = platform_config.duration_seconds
+        if not voice and platform_config.voice:
+            voice = platform_config.voice
+
+    platform_context = config_to_story_context(platform_config)
+
+    _log("\n--- Step 1/5: Generating story script ---")
 
     story = generate_story(topic, duration_seconds=duration, category=category)
 
@@ -54,7 +67,24 @@ def generate_video(
     _log(f"  Story: \"{story.get('title', 'Untitled')}\"")
     _log(f"  Scenes: {len(story.get('scenes', []))}")
 
-    # === Step 1.5: Pre-generate voiceover to get timing ===
+    # === Step 1.5: Narrative review — catch bad stories before code generation ===
+    _log("\n--- Step 1.5/5: Narrative review ---")
+    narrative_review = review_narrative(story, platform_context)
+
+    if verbose:
+        print_narrative_review(narrative_review)
+
+    narrative_score = narrative_review.get("overall_score", 0)
+    narrative_verdict = narrative_review.get("verdict", "IMPROVE")
+
+    if isinstance(narrative_score, (int, float)) and narrative_score < 6:
+        _log(f"  Narrative score {narrative_score}/10 — improving story...")
+        story = improve_narrative(story, narrative_review)
+        with open(story_path, "w") as f:
+            json.dump(story, f, indent=2)
+        _log(f"  Improved story: \"{story.get('title', 'Untitled')}\"")
+
+    # === Step 1.7: Pre-generate voiceover to get timing ===
     voiceover_result = None
     if voice:
         _log("\n--- Step 1.5: Pre-generating voiceover for timing ---")
