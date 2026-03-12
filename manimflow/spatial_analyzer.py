@@ -356,7 +356,7 @@ def _parse_animation(line: str, line_num: int, elements: dict, on_screen: set) -
 def _check_overlaps(on_screen: set, elements: dict, time: float,
                     issues: list, warnings: list, line: int,
                     _reported_pairs: set = None):
-    """Check for overlapping text elements on screen. Deduplicates by pair."""
+    """Check for overlapping elements on screen. Deduplicates by pair."""
     if _reported_pairs is None:
         _reported_pairs = set()
 
@@ -366,6 +366,13 @@ def _check_overlaps(on_screen: set, elements: dict, time: float,
         if name in elements and elements[name].kind in ("text", "mathtex")
     ]
 
+    shape_elements = [
+        (name, elements[name])
+        for name in on_screen
+        if name in elements and elements[name].kind not in ("text", "mathtex")
+    ]
+
+    # Check text-vs-text overlap
     for i, (name1, elem1) in enumerate(text_elements):
         for name2, elem2 in text_elements[i+1:]:
             pair_key = tuple(sorted([name1, name2]))
@@ -388,6 +395,22 @@ def _check_overlaps(on_screen: set, elements: dict, time: float,
                     _reported_pairs.add(pair_key)
                     warnings.append(
                         f"Line {line}: Possible text overlap between '{name1}' and '{name2}'"
+                    )
+
+    # Check text-vs-shape overlap (text hidden behind shapes)
+    for name_t, elem_t in text_elements:
+        for name_s, elem_s in shape_elements:
+            pair_key = tuple(sorted([name_t, name_s]))
+            if pair_key in _reported_pairs:
+                continue
+            overlap = elem_t.bbox.overlap_area(elem_s.bbox)
+            if overlap > 0:
+                t_area = elem_t.bbox.width * elem_t.bbox.height
+                if t_area > 0 and overlap / t_area > 0.5:
+                    _reported_pairs.add(pair_key)
+                    warnings.append(
+                        f"Line {line}: Text '{name_t}' overlaps shape '{name_s}' "
+                        f"({overlap/t_area:.0%} of text hidden)"
                     )
 
 
