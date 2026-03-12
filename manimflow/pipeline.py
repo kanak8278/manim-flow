@@ -1,144 +1,275 @@
-"""Main pipeline - orchestrates story → code → video generation with auto-fix loop."""
+"""Main pipeline - orchestrates story -> code -> evaluate -> improve -> video."""
 
 import json
 import os
-import time
-from pathlib import Path
 
 from .story import generate_story
 from .codegen import generate_manim_code, fix_manim_code
 from .renderer import render_scene, validate_code
+from .evaluator import static_code_checks, evaluate_frames_with_code, print_evaluation
+from .spatial_analyzer import analyze_scene, print_spatial_analysis
 
 
 def generate_video(
     topic: str,
     output_dir: str = "output",
     quality: str = "h",
+    duration: int = 120,
     max_fix_attempts: int = 5,
+    max_quality_loops: int = 2,
     preview: bool = False,
-    model: str = "claude-sonnet-4-20250514",
     verbose: bool = True,
 ) -> dict:
     """
-    End-to-end: topic → video file.
+    End-to-end: topic -> story -> code -> evaluate -> fix -> render -> video.
 
-    Args:
-        topic: Math/physics question or equation
-        output_dir: Where to save output
-        quality: Render quality (l/m/h/k)
-        max_fix_attempts: Max code fix iterations
-        preview: Open video after render
-        model: Claude model to use
-        verbose: Print progress
-
-    Returns:
-        dict with success, video_path, story, code, attempts
+    The pipeline has two feedback loops:
+    1. Render loop: fix code until it compiles/renders (max_fix_attempts)
+    2. Quality loop: evaluate rendered output and improve (max_quality_loops)
     """
     os.makedirs(output_dir, exist_ok=True)
     _log = print if verbose else lambda *a, **k: None
 
-    # ─── Step 1: Generate Story ───
-    _log("\n╔══════════════════════════════════════╗")
-    _log("║  ManimFlow Video Generation Pipeline ║")
-    _log("╚══════════════════════════════════════╝")
-    _log(f"\n📝 Topic: {topic}")
-    _log("\n─── Step 1/3: Generating story script ───")
+    # === Step 1: Generate Story ===
+    _log("\n======================================")
+    _log("  ManimFlow Video Generation Pipeline")
+    _log("======================================")
+    _log(f"\nTopic: {topic}")
+    _log("\n--- Step 1/4: Generating story script ---")
 
-    story = generate_story(topic, model=model)
+    story = generate_story(topic, duration_seconds=duration)
 
-    # Save story
     story_path = os.path.join(output_dir, "story.json")
     with open(story_path, "w") as f:
         json.dump(story, f, indent=2)
 
-    _log(f"  ✓ Story: \"{story.get('title', 'Untitled')}\"")
-    _log(f"  ✓ Scenes: {len(story.get('scenes', []))}")
-    _log(f"  ✓ Saved to: {story_path}")
+    _log(f"  Story: \"{story.get('title', 'Untitled')}\"")
+    _log(f"  Scenes: {len(story.get('scenes', []))}")
 
-    # ─── Step 2: Generate Manim Code ───
-    _log("\n─── Step 2/3: Generating Manim code ───")
+    # === Step 2: Generate Manim Code ===
+    _log("\n--- Step 2/4: Generating Manim code ---")
 
-    code = generate_manim_code(story, model=model)
-
-    # Save initial code
+    code = generate_manim_code(story)
     code_path = os.path.join(output_dir, "scene.py")
     with open(code_path, "w") as f:
         f.write(code)
 
-    _log(f"  ✓ Generated {len(code.splitlines())} lines of Manim code")
+    _log(f"  Generated {len(code.splitlines())} lines")
 
-    # Validate syntax first
-    syntax = validate_code(code)
-    if not syntax["valid"]:
-        _log(f"  ⚠ Syntax error: {syntax['error']}")
-        _log("  → Attempting fix...")
-        code = fix_manim_code(code, syntax["error"], model=model)
+    # === Step 2.5: Static checks before rendering ===
+    _log("\n--- Step 2.5: Static code checks ---")
+    static = static_code_checks(code)
+
+    for issue in static["issues"]:
+        _log(f"  [ISSUE] {issue}")
+    for warning in static["warnings"]:
+        _log(f"  [WARN] {warning}")
+    _log(f"  Estimated duration: ~{static['estimated_duration']:.0f}s")
+
+    if not static["pass"]:
+        _log("  Static checks found issues, attempting fix...")
+        issues_text = "\n".join(static["issues"] + static["warnings"])
+        code = fix_manim_code(code, f"Static analysis issues:\n{issues_text}")
         with open(code_path, "w") as f:
             f.write(code)
 
-    # ─── Step 3: Render with Auto-Fix Loop ───
-    _log("\n─── Step 3/3: Rendering video ───")
+    # === Step 2.7: Spatial analysis (overlap, off-screen, empty screen) ===
+    _log("\n--- Step 2.7: Spatial layout analysis ---")
+    spatial = analyze_scene(code)
+
+    if verbose:
+        print_spatial_analysis(spatial)
+
+    spatial_issues = spatial["issues"]
+    spatial_warnings = spatial["warnings"]
+    all_spatial = spatial_issues + [w for w in spatial_warnings if "off-screen" in w or "never FadeOut" in w]
+
+    if all_spatial:
+        _log(f"  {len(spatial_issues)} issues, {len(spatial_warnings)} warnings — fixing...")
+        # Cap issues sent to LLM — it only needs a summary, not 800 lines
+        fix_prompt = _build_spatial_fix_prompt(all_spatial[:30], spatial.get("elements", {}))
+        code = fix_manim_code(code, fix_prompt)
+        with open(code_path, "w") as f:
+            f.write(code)
+
+    # === Step 3: Render with Auto-Fix Loop ===
+    _log("\n--- Step 3/4: Rendering video ---")
+
+    render_result = _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+
+    if not render_result["success"]:
+        return {
+            "success": False,
+            "error": render_result["error"],
+            "story": story,
+            "code": render_result["code"],
+            "attempts": render_result["attempts"],
+            "story_path": story_path,
+            "code_path": code_path,
+        }
+
+    code = render_result["code"]
+    video_path = render_result["video_path"]
+
+    # Save working code
+    with open(code_path, "w") as f:
+        f.write(code)
+
+    # === Step 4: Quality Evaluation Loop ===
+    _log("\n--- Step 4/4: Quality evaluation ---")
+
+    for quality_round in range(max_quality_loops):
+        _log(f"\n  Quality round {quality_round + 1}/{max_quality_loops}...")
+
+        evaluation = evaluate_frames_with_code(code, story)
+
+        if verbose:
+            print_evaluation(evaluation)
+
+        verdict = evaluation.get("verdict", "FAIL")
+        overall = evaluation.get("overall_score", 0)
+
+        # Fallback: compute overall from individual scores if parse failed
+        if not isinstance(overall, (int, float)) or overall == 0:
+            scores = evaluation.get("scores", {})
+            score_vals = [
+                s.get("score", 5) for s in scores.values()
+                if isinstance(s, dict) and isinstance(s.get("score"), (int, float))
+            ]
+            if score_vals:
+                overall = sum(score_vals) / len(score_vals)
+                evaluation["overall_score"] = overall
+            if verdict in ("?", ""):
+                verdict = "PASS" if overall >= 7 else "NEEDS_FIXES" if overall >= 5 else "FAIL"
+                evaluation["verdict"] = verdict
+
+        if verdict == "PASS" and overall >= 7:
+            _log(f"  Quality PASSED (score: {overall}/10)")
+            break
+
+        if quality_round < max_quality_loops - 1:
+            _log(f"  Quality needs improvement (score: {overall}/10), regenerating...")
+
+            # Build improvement feedback
+            critical = evaluation.get("critical_issues", [])
+            suggestions = evaluation.get("suggestions", [])
+            feedback = "Fix these issues:\n" + "\n".join(critical[:5] + suggestions[:3])
+
+            code = fix_manim_code(code, feedback)
+            with open(code_path, "w") as f:
+                f.write(code)
+
+            # Re-render with improved code
+            render_result = _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+            if render_result["success"]:
+                code = render_result["code"]
+                video_path = render_result["video_path"]
+                with open(code_path, "w") as f:
+                    f.write(code)
+            else:
+                _log("  Re-render failed, keeping previous version")
+                break
+        else:
+            _log(f"  Accepting current quality (score: {overall}/10)")
+
+    _log(f"\n  Video ready: {video_path}")
+
+    return {
+        "success": True,
+        "video_path": video_path,
+        "story": story,
+        "code": code,
+        "evaluation": evaluation,
+        "story_path": story_path,
+        "code_path": code_path,
+    }
+
+
+def _render_with_fixes(
+    code: str,
+    output_dir: str,
+    quality: str,
+    max_attempts: int,
+    _log,
+) -> dict:
+    """Render loop: try to render, auto-fix on failure."""
+    # Validate syntax first
+    syntax = validate_code(code)
+    if not syntax["valid"]:
+        _log(f"  Syntax error, fixing...")
+        code = fix_manim_code(code, syntax["error"])
 
     attempt = 0
     last_error = None
 
-    while attempt < max_fix_attempts:
+    while attempt < max_attempts:
         attempt += 1
-        _log(f"\n  Attempt {attempt}/{max_fix_attempts}...")
+        _log(f"  Render attempt {attempt}/{max_attempts}...")
 
-        result = render_scene(
-            code=code,
-            output_dir=output_dir,
-            quality=quality,
-            preview=preview and attempt == max_fix_attempts,
-        )
+        result = render_scene(code=code, output_dir=output_dir, quality=quality)
 
         if result["success"]:
-            _log(f"\n  ✓ Video rendered successfully!")
-            _log(f"  ✓ Output: {result['video_path']}")
-
-            # Save final code
-            with open(code_path, "w") as f:
-                f.write(code)
-
+            _log(f"  Rendered: {result['video_path']}")
             return {
                 "success": True,
                 "video_path": result["video_path"],
-                "story": story,
                 "code": code,
                 "attempts": attempt,
-                "story_path": story_path,
-                "code_path": code_path,
             }
         else:
             last_error = result["error"]
-            _log(f"  ✗ Render failed:")
-
-            # Show condensed error
             error_lines = last_error.strip().split("\n")
-            for line in error_lines[-10:]:
+            for line in error_lines[-5:]:
                 _log(f"    {line}")
 
-            if attempt < max_fix_attempts:
-                _log(f"\n  → Auto-fixing (attempt {attempt + 1})...")
-                code = fix_manim_code(code, last_error, model=model)
+            if attempt < max_attempts:
+                _log(f"  Auto-fixing...")
+                code = fix_manim_code(code, last_error)
 
-                # Save each attempt
-                attempt_path = os.path.join(output_dir, f"scene_attempt_{attempt}.py")
-                with open(attempt_path, "w") as f:
-                    f.write(code)
-
-                # Re-save as main scene file
+                code_path = os.path.join(output_dir, "scene.py")
                 with open(code_path, "w") as f:
                     f.write(code)
 
-    _log(f"\n  ✗ Failed after {max_fix_attempts} attempts")
     return {
         "success": False,
         "error": last_error,
-        "story": story,
         "code": code,
         "attempts": attempt,
-        "story_path": story_path,
-        "code_path": code_path,
     }
+
+
+def _build_spatial_fix_prompt(issues: list[str], elements: dict) -> str:
+    """Build a specific, actionable fix prompt from spatial analysis."""
+    lines = ["SPATIAL LAYOUT PROBLEMS — fix ALL of these:\n"]
+
+    # Group issues by type
+    overlaps = [i for i in issues if "overlap" in i.lower()]
+    offscreen = [i for i in issues if "off-screen" in i.lower()]
+    accumulation = [i for i in issues if "never FadeOut" in i.lower()]
+
+    if overlaps:
+        lines.append("## TEXT OVERLAPS (elements on top of each other):")
+        for o in overlaps[:5]:
+            lines.append(f"  - {o}")
+        lines.append("FIX: Move overlapping text elements further apart vertically.")
+        lines.append("  Safe text positions: UP*3, UP*2, UP*0.5, DOWN*1, DOWN*2.5")
+        lines.append("  Minimum gap between text: 1.0 Manim units\n")
+
+    if offscreen:
+        lines.append("## OFF-SCREEN ELEMENTS (outside visible frame):")
+        for o in offscreen[:5]:
+            lines.append(f"  - {o}")
+        lines.append("FIX: Manim visible frame is x=[-7,7], y=[-4,4].")
+        lines.append("  - Use smaller font_size (24-28) for long text")
+        lines.append("  - Break long text into multiple lines")
+        lines.append("  - Keep all .move_to() positions within y=[-3.5, 3.5]\n")
+
+    if accumulation:
+        lines.append("## TEXT ACCUMULATION (elements never removed):")
+        for a in accumulation[:5]:
+            lines.append(f"  - {a}")
+        lines.append("FIX: Add FadeOut() for EVERY text element before the scene ends")
+        lines.append("  or before new text is added to the same area.\n")
+
+    lines.append("Return the complete fixed code.")
+    return "\n".join(lines)

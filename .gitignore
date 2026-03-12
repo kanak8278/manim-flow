@@ -48,3 +48,9 @@ manim/
 Thumbs.db
 
 .claude/
+
+# Output directory (generated videos, scenes, stories)
+output/
+
+# Environment variables
+.env

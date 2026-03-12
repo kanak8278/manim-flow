@@ -12,10 +12,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  manimflow "Why is e^(iπ) = -1?"
+  manimflow "Why is e^(ipi) = -1?"
   manimflow "Explain the Pythagorean theorem" --quality h
   manimflow "What is a derivative?" --preview
-  manimflow "How does projectile motion work?" --model claude-sonnet-4-20250514
+  manimflow "How does projectile motion work?"
         """,
     )
 
@@ -40,15 +40,22 @@ Examples:
         help="Open video after rendering",
     )
     parser.add_argument(
-        "--max-attempts",
+        "--duration", "-d",
         type=int,
-        default=5,
-        help="Max auto-fix attempts (default: 5)",
+        default=120,
+        help="Target video duration in seconds: 60=short, 120=standard, 300=deep, 480=long (default: 120)",
     )
     parser.add_argument(
-        "--model", "-m",
-        default="claude-sonnet-4-20250514",
-        help="Claude model to use",
+        "--max-fix-attempts",
+        type=int,
+        default=5,
+        help="Max code fix attempts per render (default: 5)",
+    )
+    parser.add_argument(
+        "--max-quality-loops",
+        type=int,
+        default=2,
+        help="Max quality improvement iterations (default: 2)",
     )
     parser.add_argument(
         "--quiet",
@@ -62,21 +69,21 @@ Examples:
         topic=args.topic,
         output_dir=args.output,
         quality=args.quality,
-        max_fix_attempts=args.max_attempts,
+        duration=args.duration,
+        max_fix_attempts=args.max_fix_attempts,
+        max_quality_loops=args.max_quality_loops,
         preview=args.preview,
-        model=args.model,
         verbose=not args.quiet,
     )
 
     if result["success"]:
         print(f"\n{'='*50}")
-        print(f"✓ VIDEO READY: {result['video_path']}")
+        print(f"VIDEO READY: {result['video_path']}")
         print(f"  Story:  {result['story_path']}")
         print(f"  Code:   {result['code_path']}")
-        print(f"  Attempts: {result['attempts']}")
         print(f"{'='*50}")
     else:
-        print(f"\n✗ Generation failed after {result['attempts']} attempts")
+        print(f"\nGeneration failed")
         print(f"  Last error: {result.get('error', 'unknown')[:200]}")
         sys.exit(1)
 
