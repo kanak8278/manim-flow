@@ -6,17 +6,29 @@ Then merges audio with the rendered video using ffmpeg.
 
 import asyncio
 import os
+import ssl
 import subprocess
 import json
+
+# Fix SSL certs for edge-tts (uv-managed Python may lack system certs)
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except Exception:
+    try:
+        import certifi
+        os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    except ImportError:
+        pass
 
 
 # Good voices for educational content
 VOICES = {
-    "male_us": "en-US-GuyNeural",        # Clear male American voice
-    "female_us": "en-US-JennyNeural",     # Clear female American voice
-    "male_uk": "en-GB-RyanNeural",        # British male (more authoritative)
-    "female_uk": "en-GB-SoniaNeural",     # British female
-    "male_au": "en-AU-WilliamNeural",     # Australian male
+    "male_us": "en-US-GuyNeural",
+    "female_us": "en-US-JennyNeural",
+    "male_uk": "en-GB-RyanNeural",
+    "female_uk": "en-GB-SoniaNeural",
+    "male_au": "en-AU-WilliamNeural",
     "default": "en-US-GuyNeural",
 }
 
@@ -45,9 +57,6 @@ def generate_voiceover(story: dict, output_dir: str,
 
     Combines all scene narrations into a single audio file with
     appropriate pauses between scenes.
-
-    Returns:
-        dict with audio_path, scene_timings, total_duration
     """
     os.makedirs(output_dir, exist_ok=True)
     voice_name = VOICES.get(voice, VOICES["default"])
@@ -64,25 +73,28 @@ def generate_voiceover(story: dict, output_dir: str,
             continue
 
         audio_path = os.path.join(output_dir, f"scene_{i:02d}.mp3")
-        result = asyncio.run(_generate_tts(narration, audio_path, voice_name))
-        scene_audios.append({
-            "scene_id": scene.get("id", i),
-            "scene_name": scene.get("name", f"scene_{i}"),
-            "narration": narration,
-            "audio_path": result["path"],
-            "duration": result["duration"],
-        })
+        try:
+            result = asyncio.run(_generate_tts(narration, audio_path, voice_name))
+            scene_audios.append({
+                "scene_id": scene.get("id", i),
+                "scene_name": scene.get("name", f"scene_{i}"),
+                "narration": narration,
+                "audio_path": result["path"],
+                "duration": result["duration"],
+            })
+        except Exception as e:
+            print(f"  TTS failed for scene {i}: {e}")
+            continue
 
     if not scene_audios:
-        return {"error": "No narration found in story scenes"}
+        return {"error": "No narration could be generated"}
 
     # Concatenate all scene audios with pauses
     final_audio = os.path.join(output_dir, "voiceover.mp3")
     _concatenate_with_pauses(scene_audios, final_audio, pause_seconds=1.0)
 
-    # Get final duration
     total_duration = sum(s["duration"] for s in scene_audios)
-    total_duration += (len(scene_audios) - 1) * 1.0  # pauses
+    total_duration += (len(scene_audios) - 1) * 1.0
 
     return {
         "audio_path": final_audio,
@@ -95,7 +107,6 @@ def generate_voiceover(story: dict, output_dir: str,
 def _concatenate_with_pauses(scene_audios: list, output_path: str,
                               pause_seconds: float = 1.0):
     """Concatenate audio files with silence gaps between them."""
-    # Create a concat file for ffmpeg
     concat_dir = os.path.dirname(output_path)
     concat_file = os.path.join(concat_dir, "concat_list.txt")
 
@@ -132,11 +143,7 @@ def _concatenate_with_pauses(scene_audios: list, output_path: str,
 
 def merge_video_audio(video_path: str, audio_path: str,
                       output_path: str) -> dict:
-    """Merge video and audio into final output.
-
-    If audio is longer than video, the video will hold the last frame.
-    If video is longer than audio, silence fills the gap.
-    """
+    """Merge video and audio into final output."""
     result = subprocess.run([
         "ffmpeg", "-y",
         "-i", video_path,
@@ -144,7 +151,7 @@ def merge_video_audio(video_path: str, audio_path: str,
         "-c:v", "copy",
         "-c:a", "aac",
         "-b:a", "128k",
-        "-shortest",  # End when the shorter stream ends
+        "-shortest",
         output_path,
     ], capture_output=True, text=True)
 
