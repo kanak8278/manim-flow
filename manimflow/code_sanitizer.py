@@ -113,6 +113,44 @@ def _convert_mathtex_to_text(line: str) -> str:
     return line
 
 
+def _inject_scene_cleanup(lines: list[str], fixes: list[str]) -> list[str]:
+    """Auto-inject FadeOut between scene sections.
+
+    Detects scene boundaries from comments like '# === SCENE' or '# Scene N'
+    and inserts `self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)`
+    before each new scene starts (if not already present).
+    """
+    result = []
+    scene_boundary_pattern = re.compile(
+        r'^\s*#\s*={2,}.*(?:scene|act|section|part)\s*',
+        re.IGNORECASE,
+    )
+    prev_was_boundary = False
+    injected_count = 0
+
+    for i, line in enumerate(lines):
+        # Detect scene boundary comments
+        if scene_boundary_pattern.search(line):
+            # Check if there's already a FadeOut nearby (within 3 lines before)
+            recent = "\n".join(lines[max(0, i-3):i])
+            if "FadeOut" not in recent and "self.mobjects" not in recent and i > 10:
+                # Inject cleanup before this scene boundary
+                indent = "        "  # 8 spaces (inside construct method)
+                cleanup_line = f"{indent}self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)"
+                result.append(cleanup_line)
+                injected_count += 1
+            prev_was_boundary = True
+        else:
+            prev_was_boundary = False
+
+        result.append(line)
+
+    if injected_count > 0:
+        fixes.append(f"Auto-injected {injected_count} FadeOut cleanup(s) between scenes")
+
+    return result
+
+
 def sanitize_code(code: str) -> tuple[str, list[str]]:
     """
     Fix common issues in generated Manim code.
@@ -182,6 +220,10 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
                 if line != original:
                     fixes.append(f"Line {i+1}: Commented out Cross() (renders poorly)")
                     new_lines[i] = line
+
+    # Auto-inject FadeOut between scene sections
+    # Detect scene boundaries (comments like "# === SCENE" or "# Scene N" or large gaps)
+    new_lines = _inject_scene_cleanup(new_lines, fixes)
 
     # Rebuild code from modified new_lines
     code = "\n".join(new_lines)

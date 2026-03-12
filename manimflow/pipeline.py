@@ -14,6 +14,7 @@ from .spatial_analyzer import analyze_scene, print_spatial_analysis
 from .code_sanitizer import sanitize_code
 from .voiceover import generate_voiceover, merge_video_audio
 from .music import select_mood, generate_ambient_track, mix_audio_tracks
+from .thumbnail import generate_thumbnail_with_title
 from .code_editor import surgical_fix
 from .platform import PlatformConfig, get_platform_config, config_to_story_context
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
@@ -340,6 +341,21 @@ def generate_video(
                 _log(f"  Merge failed: {merge_result.get('error', '')[:100]}")
         except Exception as e:
             _log(f"  Audio production error: {e}")
+
+    # === Step 6: Generate Thumbnail ===
+    thumbnail_path = ""
+    try:
+        _log("\n--- Step 6: Generating thumbnail ---")
+        thumb_dir = os.path.join(output_dir, "thumbnail")
+        title = story.get("title", "")
+        thumb_result = generate_thumbnail_with_title(
+            video_path, thumb_dir, title
+        )
+        if thumb_result.get("success"):
+            thumbnail_path = thumb_result["path"]
+            _log(f"  Thumbnail: {thumbnail_path}")
+    except Exception as e:
+        _log(f"  Thumbnail failed: {e}")
 
     _log(f"\n  Video ready: {final_video_path}")
 

@@ -30,12 +30,20 @@ def render_scene(
 
     print(f"  Rendering: {' '.join(cmd)}")
 
+    # Fix dvisvgm: set TEXMFDIST so brew's dvisvgm finds texlive resources
+    env = os.environ.copy()
+    texmf_path = "/opt/homebrew/Cellar/texlive/20260301/share/texmf-dist"
+    if os.path.isdir(texmf_path):
+        env["TEXMFDIST"] = texmf_path
+        env["TEXMFHOME"] = texmf_path
+
     result = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
         timeout=300,
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        env=env,
     )
 
     if result.returncode != 0:

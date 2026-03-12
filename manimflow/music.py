@@ -85,12 +85,36 @@ def generate_ambient_track(output_path: str, duration: float,
 
     freq_str = frequencies.get(mood, frequencies["ambient_curious"])
 
-    # Generate simple ambient pad
+    # Generate layered ambient pad with multiple frequencies for richer sound
+    # Base note + fifth + octave creates a pleasant chord
+    base_freqs = {
+        "ambient_curious": (220, 330, 440),     # A minor chord
+        "building_tension": (146, 220, 293),     # D minor
+        "upbeat_playful": (261, 329, 392),       # C major
+        "dramatic_reveal": (174, 220, 293),      # F minor
+        "gentle_wonder": (261, 392, 523),        # C major (higher)
+    }
+    freqs = base_freqs.get(mood, (220, 330, 440))
+    fade_out_start = max(0, duration - 3)
+
+    # Generate three sine waves and mix them for a pad-like sound
     cmd = [
         "ffmpeg", "-y",
         "-f", "lavfi", "-i",
-        f"sine=frequency=220:sample_rate=44100:duration={duration}",
-        "-af", f"volume=0.05,afade=t=in:st=0:d=2,afade=t=out:st={max(0, duration-3)}:d=3",
+        f"sine=frequency={freqs[0]}:sample_rate=44100:duration={duration}",
+        "-f", "lavfi", "-i",
+        f"sine=frequency={freqs[1]}:sample_rate=44100:duration={duration}",
+        "-f", "lavfi", "-i",
+        f"sine=frequency={freqs[2]}:sample_rate=44100:duration={duration}",
+        "-filter_complex",
+        f"[0:a]volume=0.03[a];"
+        f"[1:a]volume=0.02[b];"
+        f"[2:a]volume=0.015[c];"
+        f"[a][b][c]amix=inputs=3[mixed];"
+        f"[mixed]lowpass=f=2000,highpass=f=80,"
+        f"afade=t=in:st=0:d=3,"
+        f"afade=t=out:st={fade_out_start}:d=3[out]",
+        "-map", "[out]",
         "-c:a", "libmp3lame", "-q:a", "4",
         output_path,
     ]
