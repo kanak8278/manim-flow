@@ -41,9 +41,11 @@ def render_scene(
     if result.returncode != 0:
         error = result.stderr
 
-        # Enhance LaTeX errors with log file contents
+        # Enhance specific error types
         if "latex error" in error.lower() or "dvi" in error.lower():
             error = _enhance_latex_error(error, output_dir)
+        elif "NameError" in error:
+            error = _enhance_name_error(error)
 
         return {
             "success": False,
@@ -117,6 +119,26 @@ def _find_video(output_dir: str, quality: str) -> str:
             if f.endswith(".mp4"):
                 return os.path.join(root, f)
     return ""
+
+
+def _enhance_name_error(error: str) -> str:
+    """Add helpful context for NameError."""
+    enhanced = error
+    if "ease_in" in error or "ease_out" in error or "rate_func" in error.lower():
+        enhanced += (
+            "\n\nRATE FUNCTION FIX: The rate_func name is wrong. "
+            "In Manim, use these exact names:\n"
+            "  smooth, linear, rush_into, rush_from, slow_into, there_and_back,\n"
+            "  rate_functions.ease_in_sine, rate_functions.ease_out_sine,\n"
+            "  rate_functions.ease_in_out_sine\n"
+            "OR just use: smooth (default), linear, rush_into, rush_from\n"
+            "DO NOT use: ease_in_cubic, ease_out_cubic, ease_in_out_cubic — "
+            "these require importing from rate_functions.\n"
+            "SIMPLEST FIX: Replace any ease_* with 'smooth'"
+        )
+    if "CENTER" in error:
+        enhanced += "\n\nFIX: 'CENTER' is not defined in Manim. Use ORIGIN instead."
+    return enhanced
 
 
 def validate_code(code: str) -> dict:

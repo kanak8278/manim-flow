@@ -5,27 +5,68 @@ import json
 import os
 
 
-def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 8192) -> str:
-    """Call Claude via the best available method."""
-    # Try Anthropic API first (if key is set)
+def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 8192,
+             images: list[str] | None = None) -> str:
+    """Call Claude via the best available method.
+
+    Args:
+        system_prompt: System prompt
+        user_prompt: User prompt text
+        max_tokens: Max response tokens
+        images: Optional list of image file paths to include (for vision)
+    """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if api_key:
-        return _call_api(system_prompt, user_prompt, max_tokens)
+        return _call_api(system_prompt, user_prompt, max_tokens, images)
 
-    # Fall back to Claude CLI (unset CLAUDECODE to allow nested calls)
+    # Fall back to Claude CLI (no vision support)
     return _call_cli(system_prompt, user_prompt)
 
 
-def _call_api(system_prompt: str, user_prompt: str, max_tokens: int) -> str:
-    """Call via Anthropic API."""
+def _call_api(system_prompt: str, user_prompt: str, max_tokens: int,
+              images: list[str] | None = None) -> str:
+    """Call via Anthropic API with optional vision."""
     import anthropic
+    import base64
 
     client = anthropic.Anthropic()
+
+    # Build content blocks
+    content = []
+
+    # Add images first if provided
+    if images:
+        for img_path in images:
+            if os.path.exists(img_path):
+                with open(img_path, "rb") as f:
+                    img_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+                ext = img_path.rsplit(".", 1)[-1].lower()
+                media_type = {
+                    "png": "image/png",
+                    "jpg": "image/jpeg",
+                    "jpeg": "image/jpeg",
+                    "gif": "image/gif",
+                    "webp": "image/webp",
+                }.get(ext, "image/png")
+
+                content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": img_data,
+                    },
+                })
+
+    # Add text prompt
+    content.append({"type": "text", "text": user_prompt})
+
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=max_tokens,
         system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
+        messages=[{"role": "user", "content": content}],
     )
     return message.content[0].text
 

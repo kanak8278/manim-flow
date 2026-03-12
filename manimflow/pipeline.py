@@ -6,8 +6,12 @@ import os
 from .story import generate_story
 from .codegen import generate_manim_code, fix_manim_code
 from .renderer import render_scene, validate_code
-from .evaluator import static_code_checks, evaluate_frames_with_code, print_evaluation
+from .evaluator import (
+    static_code_checks, evaluate_frames_with_code, evaluate_video_frames,
+    print_evaluation,
+)
 from .spatial_analyzer import analyze_scene, print_spatial_analysis
+from .code_sanitizer import sanitize_code
 
 
 def generate_video(
@@ -55,6 +59,15 @@ def generate_video(
         f.write(code)
 
     _log(f"  Generated {len(code.splitlines())} lines")
+
+    # Sanitize: fix common LLM mistakes (rate funcs, colors, positions)
+    code, sanitize_fixes = sanitize_code(code)
+    if sanitize_fixes:
+        _log(f"  Sanitized {len(sanitize_fixes)} issues:")
+        for fix in sanitize_fixes[:5]:
+            _log(f"    {fix}")
+        with open(code_path, "w") as f:
+            f.write(code)
 
     # === Step 2.5: Static checks before rendering ===
     _log("\n--- Step 2.5: Static code checks ---")
@@ -118,6 +131,19 @@ def generate_video(
     # === Step 4: Quality Evaluation Loop ===
     _log("\n--- Step 4/4: Quality evaluation ---")
 
+    # Step 4a: Vision-based frame evaluation (if video exists)
+    if video_path:
+        _log("\n  Running frame-based vision analysis...")
+        frame_eval = evaluate_video_frames(video_path, story, output_dir)
+        visual_score = frame_eval.get("overall_visual_score", None)
+        visual_issues = frame_eval.get("visual_issues", [])
+        if visual_score:
+            _log(f"  Vision score: {visual_score}/10")
+        if visual_issues:
+            for issue in visual_issues[:5]:
+                _log(f"    [VISION] {issue}")
+
+    # Step 4b: Code-based evaluation loop
     for quality_round in range(max_quality_loops):
         _log(f"\n  Quality round {quality_round + 1}/{max_quality_loops}...")
 
@@ -225,6 +251,7 @@ def _render_with_fixes(
             if attempt < max_attempts:
                 _log(f"  Auto-fixing...")
                 code = fix_manim_code(code, last_error)
+                code, _ = sanitize_code(code)  # Re-sanitize after fix
 
                 code_path = os.path.join(output_dir, "scene.py")
                 with open(code_path, "w") as f:

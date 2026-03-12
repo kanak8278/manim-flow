@@ -129,63 +129,92 @@ Return ONLY valid JSON evaluation."""
 
 
 def evaluate_video_frames(video_path: str, story: dict, output_dir: str) -> dict:
-    """Full evaluation: extract frames and evaluate with vision model.
+    """Extract frames from rendered video and evaluate with Claude Vision.
 
-    Falls back to code-only evaluation if frame extraction fails.
+    This is Approach 2: actually LOOK at the video to catch visual issues
+    that code analysis can't detect (rendering glitches, color clashing,
+    font issues, actual overlap appearance, composition quality).
     """
     try:
         frame_paths = extract_keyframes(video_path, output_dir, num_frames=6)
     except Exception as e:
         print(f"  Frame extraction failed: {e}")
-        frame_paths = []
+        return {"frame_evaluation": None, "note": f"Frame extraction failed: {e}"}
 
     if not frame_paths:
-        return {"frame_evaluation": None, "note": "Frame extraction unavailable"}
+        return {"frame_evaluation": None, "note": "No frames extracted"}
 
-    # Build frame descriptions for evaluation
-    frame_descriptions = []
+    print(f"  Extracted {len(frame_paths)} keyframes for vision analysis")
+
+    # Build frame labels for context
+    frame_labels = []
     for i, path in enumerate(frame_paths):
         pct = int((i / max(len(frame_paths) - 1, 1)) * 100)
-        frame_descriptions.append(f"Frame at {pct}% of video: {path}")
+        frame_labels.append(f"Frame {i+1} (at {pct}% of video)")
 
-    eval_prompt = """Evaluate these video keyframes from an educational math animation.
+    eval_system = """You are a video quality evaluator for educational math/physics animations.
+You are looking at keyframes extracted from a Manim animation. Analyze what you SEE."""
 
-For each frame, assess:
-1. Is there content visible (not blank/black)?
-2. Is text readable and well-positioned?
-3. Are mathematical elements (curves, axes, equations) properly rendered?
-4. Is the frame visually appealing?
+    eval_prompt = f"""These are {len(frame_paths)} keyframes from an educational animation.
+Video title: {story.get('title', 'Unknown')}
+
+Frame timestamps: {', '.join(frame_labels)}
+
+For EACH frame, evaluate what you actually see:
+1. Is there content (not just black screen)?
+2. Is any text overlapping other text?
+3. Is text readable (size, contrast, positioning)?
+4. Is any content cut off at the edges?
+5. Is the visual composition clean and professional?
+6. Are colors appropriate (readable on black background)?
 
 Return JSON:
-{
+{{
   "frame_analysis": [
-    {"frame": 0, "has_content": true, "text_readable": true, "math_visible": true, "notes": "..."},
-    ...
+    {{"frame": 1, "has_content": true, "overlap_detected": false, "text_readable": true, "cutoff": false, "composition": "good|fair|poor", "notes": "description of what you see"}}
   ],
-  "blank_frames": 0,
-  "overlap_detected": false,
-  "overall_visual_quality": 7,
-  "issues": []
-}"""
-
-    response = call_llm(eval_prompt, f"Frames from video: {frame_descriptions}\nStory: {json.dumps(story, indent=2)[:1000]}")
+  "blank_frame_count": 0,
+  "overlap_detected_in_any": false,
+  "cutoff_detected_in_any": false,
+  "overall_visual_score": 7,
+  "visual_issues": ["list of specific issues seen in frames"],
+  "visual_strengths": ["list of things that look good"]
+}}"""
 
     try:
-        if "```json" in response:
-            response = response.split("```json")[1].split("```")[0]
-        start = response.find("{")
-        depth = 0
-        for i in range(start, len(response)):
-            if response[i] == "{":
-                depth += 1
-            elif response[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    return json.loads(response[start:i+1])
-    except (json.JSONDecodeError, ValueError):
-        pass
+        response = call_llm(eval_system, eval_prompt, images=frame_paths)
+        return _parse_json_response(response)
+    except Exception as e:
+        print(f"  Vision evaluation failed: {e}")
+        return {"frame_evaluation": None, "note": f"Vision eval failed: {e}"}
 
-    return {"frame_evaluation": "parse_error"}
+
+def _parse_json_response(response: str) -> dict:
+    """Parse JSON from LLM response."""
+    if "```json" in response:
+        response = response.split("```json")[1].split("```")[0]
+    elif "```" in response:
+        block = response.split("```")[1].split("```")[0]
+        if block.strip().startswith("{"):
+            response = block
+
+    start = response.find("{")
+    if start == -1:
+        return {"parse_error": True}
+
+    depth = 0
+    for i in range(start, len(response)):
+        if response[i] == "{":
+            depth += 1
+        elif response[i] == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(response[start:i+1])
+                except json.JSONDecodeError:
+                    return {"parse_error": True}
+
+    return {"parse_error": True}
 
 
 def static_code_checks(code: str) -> dict:
