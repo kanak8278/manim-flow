@@ -5,6 +5,7 @@ import sys
 
 from .pipeline import generate_video
 from .categories import list_categories, CATEGORIES
+from .topics import get_suggested_topics
 
 
 def main():
@@ -31,8 +32,11 @@ Categories:
 
     subparsers = parser.add_subparsers(dest="command")
 
-    # List categories subcommand
-    list_parser = subparsers.add_parser("categories", help="List available content categories")
+    # Subcommands
+    subparsers.add_parser("categories", help="List available content categories")
+    topics_parser = subparsers.add_parser("topics", help="Get suggested topics")
+    topics_parser.add_argument("--category", "-c", default=None, help="Filter by category")
+    topics_parser.add_argument("--count", "-n", type=int, default=10, help="Number of topics")
 
     # Default: generate video
     parser.add_argument(
@@ -98,6 +102,9 @@ Categories:
     if args.command == "categories":
         _print_categories()
         return
+    if args.command == "topics":
+        _print_topics(args.category, args.count)
+        return
 
     if not args.topic:
         parser.print_help()
@@ -137,6 +144,18 @@ def _print_categories():
         print(f"  {'':15s}  {cat['description']}")
         print(f"  {'':15s}  Duration: ~{cat['duration']}s")
         print(f"  {'':15s}  Examples: {', '.join(cat['examples'])}")
+        print()
+
+
+def _print_topics(category: str | None, count: int):
+    """Print suggested topics."""
+    topics = get_suggested_topics(category, count)
+    print("\nSuggested Topics (sorted by engagement potential):\n")
+    for i, t in enumerate(topics, 1):
+        score = t["intuition_score"] * t["visual_score"]
+        print(f"  {i:2d}. [{score:3d}] {t['topic']}")
+        print(f"      Hook: {t['hook']}")
+        print(f"      Intuition: {t['intuition_score']}/10 | Visual: {t['visual_score']}/10")
         print()
 
 
