@@ -18,6 +18,10 @@ def main():
     print("  * ButterflyImproved: Comprehensive explanation with proper pacing")
     print("- butterfly_final.py: ⭐ FINAL VERSION - Perfect butterfly visualization")
     print("  * ButterflyFinal: Complete 2π loops, clean text, color transitions")
+    print("- heart_curve.py: ❤️ Mathematical Heart - Romantic curve visualization")
+    print("  * HeartCurveFinal: Progressive heart building with component analysis")
+    print("  * HeartCurveComplete: ⭐ COMPLETE VERSION - Full 6-minute cinematic heart journey")
+    print("    → Hook → Foundation → Building → Analysis → Grand Finale")
     print("\nTo render: uv run python -m manim -pqh <scene_file>.py <SceneClass>")
 
 

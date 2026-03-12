@@ -207,6 +207,127 @@ project/
 - **Modular design** with reusable functions
 - **Error handling** for edge cases
 
+### 6. **Coordinate System and Positioning Planning**
+Mathematical curves require careful coordinate system design to ensure proper visibility.
+
+#### ✅ DO:
+- **Plan axes ranges** based on curve dimensions (test with max/min values)
+- **Use adequate buffer space** around curves (25-50% extra range)
+- **Center curves properly** within the coordinate system
+- **Scale curves consistently** throughout the animation
+- **Position axes strategically** (slightly down if curve is tall)
+
+#### ❌ DON'T:
+- Use default axes ranges without testing curve bounds
+- Let curves extend outside the viewing area
+- Ignore curve positioning during transformations
+- Use inconsistent scaling between components
+
+#### Example:
+```python
+# BAD - curve may go out of bounds
+axes = Axes(x_range=[-10, 10], y_range=[-10, 10])
+curve = ParametricFunction(heart_function).scale(0.5)  # Unknown final size
+
+# GOOD - planned coordinate system
+# Heart curve ranges approximately x: [-16, 16], y: [-13, 15]
+axes = Axes(
+    x_range=[-25, 25, 5],  # 50% buffer
+    y_range=[-20, 20, 5],  # 30% buffer
+    x_length=10, y_length=7
+).move_to(DOWN * 0.5)  # Positioned for tall curves
+curve = ParametricFunction(heart_function).scale(0.15).move_to(DOWN * 0.5)
+```
+
+### 7. **Color Compatibility and Standards**
+Manim Community has specific standard colors that should be used to avoid runtime errors.
+
+#### ✅ Standard Manim Colors:
+- **Primary**: `RED`, `GREEN`, `BLUE`, `YELLOW`, `PURPLE`, `ORANGE`, `PINK`
+- **Neutral**: `WHITE`, `GRAY`, `BLACK`
+- **Extended**: Use hex codes for custom colors: `"#FF5733"`, `"#33AFFF"`
+
+#### ❌ Non-Standard Colors (cause errors):
+- `CYAN` → Use `BLUE` or `"#00FFFF"`
+- `TEAL` → Use `BLUE` or `"#008080"`
+- `MAGENTA` → Use `PINK` or `"#FF00FF"`
+- `CORAL` → Use `ORANGE` or `"#FF7F50"`
+- `INDIGO` → Use `PURPLE` or `"#4B0082"`
+- `VIOLET` → Use `PURPLE` or `"#8A2BE2"`
+
+#### Example:
+```python
+# BAD - causes NameError
+curve.set_color(CYAN)
+gradient_colors = [RED, TEAL, MAGENTA]
+
+# GOOD - uses standard colors
+curve.set_color(BLUE)
+gradient_colors = [RED, BLUE, PINK]
+# Or use hex codes for exact colors
+gradient_colors = [RED, "#008080", "#FF00FF"]
+```
+
+### 8. **Special Characters and Emoji Handling**
+Emojis and special characters require careful VGroup structuring for proper rendering.
+
+#### ✅ DO:
+- **Use VGroup** for combining text with emojis
+- **Separate text and emoji** into different Text objects
+- **Apply colors individually** to each component
+- **Test emoji rendering** on your system before production
+
+#### ❌ DON'T:
+- Put emojis directly in Text strings with other text
+- Assume emojis will render consistently across systems
+- Apply transforms to mixed text+emoji strings
+
+#### Example:
+```python
+# BAD - emoji may not render properly
+final_message = Text("Mathematics + Art = ❤️", font_size=36)
+
+# GOOD - separated structure
+math_text = Text("Mathematics + Art = ", font_size=36, color=WHITE)
+heart_emoji = Text("❤️", font_size=48)
+heart_emoji.set_color(RED)
+
+final_message = VGroup(math_text, heart_emoji).arrange(RIGHT, buff=0.2)
+final_message.set_color_by_gradient(RED, PINK)
+```
+
+### 9. **Transition Management and Empty Space Prevention**
+Complex animations require careful transition planning to avoid empty spaces.
+
+#### ✅ DO:
+- **Plan intermediate animations** for long transitions
+- **Use placeholder elements** during complex rebuilds
+- **Test all transition sequences** for visual continuity
+- **Add progressive reveals** instead of sudden appearances
+
+#### ❌ DON'T:
+- Leave empty spaces during multi-step transitions
+- Clear all elements simultaneously without replacement
+- Rush through complex rebuilding sequences
+
+#### Example:
+```python
+# BAD - creates empty space
+self.play(FadeOut(current_curve), run_time=1)
+# Long pause with empty screen
+for segment in new_segments:
+    self.play(Create(segment), run_time=0.3)
+
+# GOOD - bridged transition
+# Add intermediate element
+placeholder = ParametricFunction(curve_func).set_fill(RED, opacity=0.2)
+self.play(Create(placeholder), run_time=2)
+self.play(FadeOut(current_curve), FadeOut(placeholder), run_time=0.5)
+# Immediately start new sequence
+for segment in new_segments:
+    self.play(Create(segment), run_time=0.3)
+```
+
 ## Common Pitfalls and Solutions
 
 ### Problem: Text Overlap
@@ -229,6 +350,22 @@ project/
 **Symptoms**: Transform errors, objects not behaving as expected
 **Solution**: Use separate variables, avoid Transform on text, explicit object lifecycle
 
+### Problem: Curves Going Out of Bounds
+**Symptoms**: Heart/curve partially visible or cut off at screen edges
+**Solution**: Plan coordinate system ranges, use 25-50% buffer space, test curve dimensions
+
+### Problem: Color Name Errors  
+**Symptoms**: `NameError: name 'CYAN' is not defined` or similar
+**Solution**: Use only standard Manim colors (RED, BLUE, GREEN, etc.) or hex codes
+
+### Problem: Emoji Rendering Issues
+**Symptoms**: Missing heart emoji or malformed special characters
+**Solution**: Use VGroup with separate Text objects, test emoji compatibility
+
+### Problem: Empty Spaces During Transitions
+**Symptoms**: Blank screen or empty areas during complex scene changes
+**Solution**: Add intermediate placeholder elements, bridge transitions smoothly
+
 ## Quality Checklist
 
 Before finalizing any mathematical animation:
@@ -239,6 +376,10 @@ Before finalizing any mathematical animation:
 - [ ] Appropriate timing and pacing
 - [ ] Clean object lifecycle management
 - [ ] No reference conflicts or errors
+- [ ] Curves properly centered and within viewing bounds
+- [ ] Standard Manim colors used (no CYAN, TEAL, MAGENTA, etc.)
+- [ ] Emojis/special characters handled with VGroup structure
+- [ ] No empty spaces during transitions
 
 ### Educational Quality  
 - [ ] Mathematical concepts clearly explained
