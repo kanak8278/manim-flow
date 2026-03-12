@@ -1,6 +1,7 @@
 """Story generation engine - turns a question/equation into a narrative script."""
 
 from .llm import call_llm, extract_json
+from .categories import get_category, suggest_category
 
 # Duration presets — think like a content creator
 DURATION_PRESETS = {
@@ -154,18 +155,32 @@ CRITICAL: Every scene must have concrete, implementable animation instructions.
 Return ONLY the JSON. No other text."""
 
 
-def generate_story(topic: str, duration_seconds: int = 120) -> dict:
+def generate_story(topic: str, duration_seconds: int = 120,
+                   category: str | None = None) -> dict:
     """Generate a story script from a topic/question/equation.
 
     Args:
         topic: The math/physics question or concept
         duration_seconds: Target video duration (30-480s)
-            30-75s  = short TikTok/Reel style
-            75-150s = standard 2-min explainer
-            150-360s = 5-min deep dive
-            360-480s = 8-min comprehensive
+        category: Content category (auto-detected if None)
     """
+    # Auto-detect category if not specified
+    if category is None:
+        category = suggest_category(topic)
+
+    cat = get_category(category)
+
+    # Use category's recommended duration if not explicitly set
     preset = _get_duration_preset(duration_seconds)
+
+    # Build category-specific hints
+    category_context = ""
+    if cat:
+        category_context = (
+            f"\n\nCONTENT CATEGORY: {cat.name}\n"
+            f"STORYTELLING APPROACH: {cat.story_hints}\n"
+            f"VISUAL STYLE: {cat.visual_style}\n"
+        )
 
     system_prompt = STORY_SYSTEM_PROMPT_TEMPLATE.format(
         structure=preset["structure"],
@@ -176,10 +191,13 @@ def generate_story(topic: str, duration_seconds: int = 120) -> dict:
         f"Create an engaging {preset['label']} video script for:\n\n"
         f"{topic}\n\n"
         f"Target duration: ~{duration_seconds} seconds.\n"
+        f"{category_context}\n"
         f"Make it visually stunning and intellectually satisfying. "
         f"Focus on building intuition, not just showing formulas.\n\n"
         f"Return ONLY valid JSON."
     )
 
     response = call_llm(system_prompt, user_prompt)
-    return extract_json(response)
+    story = extract_json(response)
+    story["category"] = category
+    return story

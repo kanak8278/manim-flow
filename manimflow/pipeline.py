@@ -19,6 +19,7 @@ def generate_video(
     output_dir: str = "output",
     quality: str = "h",
     duration: int = 120,
+    category: str | None = None,
     max_fix_attempts: int = 5,
     max_quality_loops: int = 2,
     preview: bool = False,
@@ -41,7 +42,7 @@ def generate_video(
     _log(f"\nTopic: {topic}")
     _log("\n--- Step 1/4: Generating story script ---")
 
-    story = generate_story(topic, duration_seconds=duration)
+    story = generate_story(topic, duration_seconds=duration, category=category)
 
     story_path = os.path.join(output_dir, "story.json")
     with open(story_path, "w") as f:
@@ -131,22 +132,26 @@ def generate_video(
     # === Step 4: Quality Evaluation Loop ===
     _log("\n--- Step 4/4: Quality evaluation ---")
 
-    # Step 4a: Vision-based frame evaluation (if video exists)
-    if video_path:
-        _log("\n  Running frame-based vision analysis...")
-        frame_eval = evaluate_video_frames(video_path, story, output_dir)
-        visual_score = frame_eval.get("overall_visual_score", None)
-        visual_issues = frame_eval.get("visual_issues", [])
-        if visual_score:
-            _log(f"  Vision score: {visual_score}/10")
-        if visual_issues:
-            for issue in visual_issues[:5]:
-                _log(f"    [VISION] {issue}")
+    evaluation = {}
 
-    # Step 4b: Code-based evaluation loop
     for quality_round in range(max_quality_loops):
         _log(f"\n  Quality round {quality_round + 1}/{max_quality_loops}...")
 
+        # Step 4a: Vision-based frame evaluation
+        vision_feedback = []
+        if video_path:
+            _log("  Running frame-based vision analysis...")
+            frame_eval = evaluate_video_frames(video_path, story, output_dir)
+            visual_score = frame_eval.get("overall_visual_score", None)
+            visual_issues = frame_eval.get("visual_issues", [])
+            if visual_score:
+                _log(f"  Vision score: {visual_score}/10")
+            if visual_issues:
+                for issue in visual_issues[:5]:
+                    _log(f"    [VISION] {issue}")
+                vision_feedback = visual_issues
+
+        # Step 4b: Code-based evaluation
         evaluation = evaluate_frames_with_code(code, story)
 
         if verbose:
@@ -176,12 +181,16 @@ def generate_video(
         if quality_round < max_quality_loops - 1:
             _log(f"  Quality needs improvement (score: {overall}/10), regenerating...")
 
-            # Build improvement feedback
+            # Build improvement feedback combining code analysis + vision
             critical = evaluation.get("critical_issues", [])
             suggestions = evaluation.get("suggestions", [])
-            feedback = "Fix these issues:\n" + "\n".join(critical[:5] + suggestions[:3])
+            all_feedback = critical[:5] + suggestions[:3]
+            if vision_feedback:
+                all_feedback += [f"[VISION] {v}" for v in vision_feedback[:3]]
 
+            feedback = "Fix these issues:\n" + "\n".join(all_feedback)
             code = fix_manim_code(code, feedback)
+            code, _ = sanitize_code(code)
             with open(code_path, "w") as f:
                 f.write(code)
 
