@@ -88,10 +88,25 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
                 if line != original:
                     fixes.append(f"Line {i+1}: Replaced '{bad_pos}' with '{good_pos}'")
 
-        # Fix \\text{} in MathTex
-        if "MathTex" in line and "\\text" in line:
-            # This is a harder fix — just warn, the render loop will catch it
-            fixes.append(f"Line {i+1}: WARNING - \\text{{}} in MathTex may cause LaTeX crash")
+        # Fix \\text{} in MathTex — replace with Text()
+        if "MathTex" in line and "\\text{" in line:
+            # Extract the \text{content} and convert MathTex to Text
+            import re as _re
+            text_match = _re.search(r'\\text\{([^}]+)\}', line)
+            if text_match:
+                text_content = text_match.group(1)
+                # Replace MathTex(r"\text{foo} = bar") with Text("foo = bar")
+                old_line = line
+                # Simple case: \text{} is the whole content
+                if "\\text{" in line and "MathTex" in line:
+                    # Convert to Text() — remove LaTeX formatting
+                    cleaned = _re.sub(r'\\text\{([^}]+)\}', r'\1', line)
+                    cleaned = cleaned.replace("MathTex", "Text")
+                    cleaned = cleaned.replace("\\pi", "pi").replace("\\times", "x")
+                    cleaned = cleaned.replace("\\frac", "").replace("\\", "")
+                    line = cleaned
+                    if line != old_line:
+                        fixes.append(f"Line {i+1}: Converted MathTex with \\text{{}} to Text()")
 
         new_lines.append(line)
 
