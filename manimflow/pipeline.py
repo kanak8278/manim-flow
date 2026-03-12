@@ -244,19 +244,35 @@ def generate_video(
                 verdict = "PASS" if overall >= 7 else "NEEDS_FIXES" if overall >= 5 else "FAIL"
                 evaluation["verdict"] = verdict
 
-        if verdict == "PASS" and overall >= 7:
-            _log(f"  Quality PASSED (score: {overall}/10)")
+        # Combine vision + code scores — vision is ground truth
+        combined_score = overall
+        if visual_score and isinstance(visual_score, (int, float)):
+            # Weight: 40% vision, 60% code analysis
+            combined_score = 0.4 * visual_score + 0.6 * overall
+            if visual_score < 5:
+                # Vision veto: if frames look bad, don't accept regardless of code score
+                combined_score = min(combined_score, 6.0)
+                _log(f"  Vision veto: frames scored {visual_score}/10, capping combined to {combined_score:.1f}")
+
+        if verdict == "PASS" and combined_score >= 7:
+            _log(f"  Quality PASSED (code: {overall}/10, vision: {visual_score}/10, combined: {combined_score:.1f}/10)")
             break
 
         if quality_round < max_quality_loops - 1:
-            _log(f"  Quality needs improvement (score: {overall}/10), regenerating...")
+            _log(f"  Quality needs improvement (combined: {combined_score:.1f}/10), regenerating...")
 
             # Build improvement feedback combining code analysis + vision
             critical = evaluation.get("critical_issues", [])
             suggestions = evaluation.get("suggestions", [])
             all_feedback = critical[:5] + suggestions[:3]
+
+            # Vision feedback gets priority if vision score is low
             if vision_feedback:
-                all_feedback += [f"[VISION] {v}" for v in vision_feedback[:3]]
+                if visual_score and visual_score < 6:
+                    # Vision issues are critical — put them first
+                    all_feedback = [f"[CRITICAL VISION] {v}" for v in vision_feedback[:5]] + all_feedback[:3]
+                else:
+                    all_feedback += [f"[VISION] {v}" for v in vision_feedback[:3]]
 
             feedback = "Fix these issues:\n" + "\n".join(all_feedback)
 
