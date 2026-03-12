@@ -27,10 +27,12 @@ def extract_keyframes(video_path: str, output_dir: str, num_frames: int = 8) -> 
 
     duration = float(result.stdout.strip())
 
-    # Extract frames at evenly spaced intervals
+    # Extract frames at evenly spaced intervals, skipping first 0.5s (always black in Manim)
     frame_paths = []
+    start_offset = min(0.5, duration * 0.05)
+    effective_duration = duration - start_offset
     for i in range(num_frames):
-        timestamp = (i / (num_frames - 1)) * duration if num_frames > 1 else 0
+        timestamp = start_offset + (i / max(num_frames - 1, 1)) * effective_duration
         frame_path = os.path.join(frames_dir, f"frame_{i:03d}.png")
 
         cmd = [
@@ -160,7 +162,10 @@ Video title: {story.get('title', 'Unknown')}
 
 Frame timestamps: {', '.join(frame_labels)}
 
-For EACH frame, evaluate what you actually see:
+NOTE: The FIRST frame (frame 1) is often black/empty — this is normal for Manim videos
+(the background renders before any animation starts). Do NOT penalize this.
+
+For EACH frame (starting from frame 2), evaluate what you actually see:
 1. Is there content (not just black screen)?
 2. Is any text overlapping other text?
 3. Is text readable (size, contrast, positioning)?

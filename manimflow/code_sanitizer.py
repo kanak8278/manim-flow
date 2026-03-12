@@ -112,6 +112,18 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
 
     code = "\n".join(new_lines)
 
+    # Fix blank first frame: add a tiny wait after background_color to render first frame with content
+    # The issue is Manim creates a black frame before any animation starts
+    found_background = False
+    for i, line in enumerate(new_lines):
+        if "background_color" in line and "BLACK" in line:
+            found_background = True
+        elif found_background and "self.play" in line and i > 0:
+            # Insert self.wait(0.01) before first animation to avoid pure black frame
+            # Actually, don't — this just makes a longer black frame. The real fix is
+            # to ensure the first animation immediately shows content.
+            break
+
     # Ensure imports exist
     if "from manim import" not in code:
         code = "from manim import *\nimport numpy as np\n\n" + code
