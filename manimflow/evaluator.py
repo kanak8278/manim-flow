@@ -195,9 +195,16 @@ B. SEMANTIC CORRECTNESS (CRITICAL — most evaluators miss this):
    - Lines that should be straight ARE straight
    - Fills/shading should align with boundaries
 
-C. PRODUCTION QUALITY:
-8. Does this look professional or amateurish?
-9. Would you be embarrassed to post this on YouTube?
+C. RENDERING ISSUES (check carefully):
+8. Are there GREY BOXES or GREY SQUARES anywhere? These are font rendering failures.
+   Small grey rectangles near text = non-ASCII characters the font can't render.
+   This is a CRITICAL BUG — score should be 3/10 or lower if present.
+9. Are there stray characters, random letters, or truncated text?
+10. Are there any visual elements that look broken or glitched?
+
+D. PRODUCTION QUALITY:
+11. Does this look professional or amateurish?
+12. Would you be embarrassed to post this on YouTube?
 
 Return JSON:
 {{

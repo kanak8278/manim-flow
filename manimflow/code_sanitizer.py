@@ -167,6 +167,22 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
             # to ensure the first animation immediately shows content.
             break
 
+    # Fix non-ASCII characters in Text() — render as grey boxes
+    for i, line in enumerate(new_lines):
+        if "Text(" in line:
+            # Find string content in Text()
+            text_matches = re.findall(r'Text\(["\']([^"\']*)["\']', line)
+            for text_content in text_matches:
+                # Check for non-ASCII characters
+                cleaned = ''.join(c if ord(c) < 128 else '' for c in text_content)
+                if cleaned != text_content:
+                    original = line
+                    line = line.replace(text_content, cleaned)
+                    new_lines[i] = line
+                    if line != original:
+                        removed_chars = set(c for c in text_content if ord(c) >= 128)
+                        fixes.append(f"Line {i+1}: Removed non-ASCII chars {removed_chars} from Text()")
+
     # Fix Cross() — renders as ugly grey box
     for i, line in enumerate(new_lines):
         if "Cross(" in line and "cross" not in line.lower().split("=")[0] if "=" in line else True:

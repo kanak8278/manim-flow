@@ -22,11 +22,15 @@ TEXT RULES:
 - Long text (>30 chars): use font_size 24 or break into lines
 - USE THE FULL SCREEN. Center content vertically. Don't leave 80% of screen black.
   Put title at UP*2, main visual at ORIGIN, explanation at DOWN*2.
-- NEVER use Cross() — it renders as an ugly grey box. Instead use red Line() to cross things out:
-  ```python
-  strike = Line(obj.get_left(), obj.get_right(), color=RED, stroke_width=6)
-  self.play(Create(strike), run_time=0.5)
-  ```
+- NEVER use Cross() — it renders as an ugly grey box. Use red Line() instead.
+- NEVER use special characters, bullets, or symbols in Text(). ASCII only.
+  BAD: "✓", "•", "→", "★", "▪", emojis
+  GOOD: "YES", "-", "->", "*"
+  Non-ASCII characters render as GREY BOXES in Manim's default font.
+- When placing text near shapes (circles, graphs), ensure text is ABOVE or BELOW
+  the shape, NOT overlapping it. Visual elements and text must not share space.
+- When using VGroup with many items (>10 dots, people icons), keep them SMALL
+  and in a dedicated area. Don't let them spread across the whole screen.
 
 QUALITY RULES (the difference between a 6/10 and 8+/10 video):
 - EVERY scene needs shapes/curves/arrows, not just text
