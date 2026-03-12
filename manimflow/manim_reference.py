@@ -241,6 +241,36 @@ PI, TAU (=2*PI), DEGREES
 X_AXIS, Y_AXIS, Z_AXIS
 SMALL_BUFF (0.1), MED_SMALL_BUFF (0.25), MED_LARGE_BUFF (0.5), LARGE_BUFF (1.0)
 
+### CAMERA (MovingCameraScene — zoom, pan, follow)
+```python
+# Use MovingCameraScene instead of Scene for camera control
+class GeneratedScene(MovingCameraScene):
+    def construct(self):
+        self.camera.background_color = BLACK
+
+        # Save initial camera state (restore later)
+        self.camera.frame.save_state()
+
+        # ZOOM IN on a specific element
+        self.play(self.camera.frame.animate.scale(0.5).move_to(element), run_time=2)
+
+        # ZOOM OUT to see full scene
+        self.play(self.camera.frame.animate.scale(2).move_to(ORIGIN), run_time=2)
+
+        # PAN to a specific position
+        self.play(self.camera.frame.animate.move_to(RIGHT * 4), run_time=2)
+
+        # AUTO-ZOOM to fit specific mobjects with margin
+        self.play(self.camera.auto_zoom([obj1, obj2], margin=0.5))
+
+        # RESTORE to original view
+        from manim import Restore
+        self.play(Restore(self.camera.frame), run_time=1.5)
+
+        # ZOOM + PAN in one animation
+        self.play(self.camera.frame.animate.move_to(target).set(width=6), run_time=2)
+```
+
 ### VALUE TRACKING (for animated numbers)
 ```python
 tracker = ValueTracker(0)

@@ -9,7 +9,8 @@ _RULES = r"""
 RULES (follow exactly — violations = broken video):
 
 1. Import: `from manim import *` and `import numpy as np`
-2. Class: `GeneratedScene(Scene)` with `def construct(self):`
+2. Class: `GeneratedScene(MovingCameraScene)` with `def construct(self):`
+   NOTE: Use MovingCameraScene, NOT Scene. This enables camera zoom/pan.
 3. Background: `self.camera.background_color = BLACK`
 4. NO MathTex. Use Text() for everything including math. Write "pi*r^2" not LaTeX.
 5. rate_func: ONLY use smooth, linear, rush_into, rush_from, there_and_back
@@ -40,6 +41,14 @@ QUALITY RULES (the difference between a 6/10 and 8+/10 video):
 - wait(1.5-2) between key concepts, wait(0.5) between quick steps
 - End with dramatic final scene: scale up, gradient, or rotation
 - Use .set_color_by_gradient() for titles
+
+CAMERA (use at least 2 camera moves per video):
+- Zoom INTO key equations/diagrams when explaining details:
+  self.play(self.camera.frame.animate.scale(0.6).move_to(element), run_time=2)
+- Zoom OUT to show the big picture after zooming in:
+  self.play(Restore(self.camera.frame), run_time=1.5)
+- Save camera state at start: self.camera.frame.save_state()
+- Always Restore() before final scene so ending looks clean
 """
 
 CODEGEN_SYSTEM_PROMPT = (
