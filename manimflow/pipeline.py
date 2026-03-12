@@ -12,6 +12,7 @@ from .evaluator import (
 )
 from .spatial_analyzer import analyze_scene, print_spatial_analysis
 from .code_sanitizer import sanitize_code
+from .voiceover import generate_voiceover, merge_video_audio
 
 
 def generate_video(
@@ -20,6 +21,7 @@ def generate_video(
     quality: str = "h",
     duration: int = 120,
     category: str | None = None,
+    voice: str | None = None,
     max_fix_attempts: int = 5,
     max_quality_loops: int = 2,
     preview: bool = False,
@@ -207,11 +209,40 @@ def generate_video(
         else:
             _log(f"  Accepting current quality (score: {overall}/10)")
 
-    _log(f"\n  Video ready: {video_path}")
+    # === Step 5: Voiceover (optional) ===
+    final_video_path = video_path
+    voiceover_result = None
+
+    if voice:
+        _log("\n--- Step 5: Generating voiceover ---")
+        try:
+            vo_dir = os.path.join(output_dir, "voiceover")
+            voiceover_result = generate_voiceover(story, vo_dir, voice=voice)
+
+            if voiceover_result.get("audio_path"):
+                _log(f"  Audio: {voiceover_result['audio_path']}")
+                _log(f"  Duration: {voiceover_result['total_duration']:.1f}s")
+
+                # Merge video + audio
+                final_path = os.path.join(output_dir, "final_with_voiceover.mp4")
+                merge_result = merge_video_audio(
+                    video_path, voiceover_result["audio_path"], final_path
+                )
+                if merge_result["success"]:
+                    final_video_path = final_path
+                    _log(f"  Final video with voiceover: {final_path}")
+                else:
+                    _log(f"  Audio merge failed: {merge_result.get('error', '')[:100]}")
+            else:
+                _log(f"  Voiceover failed: {voiceover_result.get('error', 'unknown')}")
+        except Exception as e:
+            _log(f"  Voiceover error: {e}")
+
+    _log(f"\n  Video ready: {final_video_path}")
 
     return {
         "success": True,
-        "video_path": video_path,
+        "video_path": final_video_path,
         "story": story,
         "code": code,
         "evaluation": evaluation,

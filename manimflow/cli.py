@@ -69,6 +69,12 @@ Categories:
         help="Content category (auto-detected if omitted)",
     )
     parser.add_argument(
+        "--voice", "-v",
+        choices=["male_us", "female_us", "male_uk", "female_uk", "male_au"],
+        default=None,
+        help="Add voiceover narration (default: no voiceover)",
+    )
+    parser.add_argument(
         "--max-fix-attempts",
         type=int,
         default=5,
@@ -103,6 +109,7 @@ Categories:
         quality=args.quality,
         duration=args.duration,
         category=args.category,
+        voice=args.voice,
         max_fix_attempts=args.max_fix_attempts,
         max_quality_loops=args.max_quality_loops,
         preview=args.preview,
