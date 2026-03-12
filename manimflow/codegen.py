@@ -3,6 +3,7 @@
 import json
 from .llm import call_llm, extract_code
 from .manim_reference import MANIM_API_REFERENCE
+from .transitions import get_transition_guide
 
 _RULES = r"""
 RULES (follow exactly — violations = broken video):
@@ -36,6 +37,7 @@ CODEGEN_SYSTEM_PROMPT = (
     "NOT text slideshows.\n\n"
     + MANIM_API_REFERENCE
     + _RULES
+    + "\n" + get_transition_guide()
     + "\nReturn ONLY Python code. No markdown.\n"
 )
 

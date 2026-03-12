@@ -62,7 +62,9 @@ EVALUATION DIMENSIONS:
 3. PROGRESSIVE BUILD (1-10): Does complexity build gradually or dump everything?
 4. COLOR USAGE (1-10): Do colors encode meaning consistently? Good contrast on black bg?
 5. TEXT MANAGEMENT (1-10): Clean text lifecycle? FadeOut before new text? No accumulation?
-6. MATHEMATICAL ACCURACY (1-10): Are equations correct? Complete cycles shown?
+6. MATHEMATICAL & VISUAL ACCURACY (1-10): Are equations correct? Do visualizations
+   accurately represent the data? If code shows fill_opacity=0.5 for "50.7%", that's wrong.
+   If a pie chart angle doesn't match the percentage, that's wrong.
 7. ENGAGEMENT (1-10): Hook quality? "Aha" moment? Narrative arc?
 8. ANIMATION VARIETY (1-10): Mix of Create, Transform, FadeIn? Not repetitive?
 
@@ -154,35 +156,62 @@ def evaluate_video_frames(video_path: str, story: dict, output_dir: str) -> dict
         pct = int((i / max(len(frame_paths) - 1, 1)) * 100)
         frame_labels.append(f"Frame {i+1} (at {pct}% of video)")
 
-    eval_system = """You are a video quality evaluator for educational math/physics animations.
-You are looking at keyframes extracted from a Manim animation. Analyze what you SEE."""
+    # Build scene descriptions so vision can check semantic correctness
+    scene_descriptions = []
+    for scene in story.get("scenes", []):
+        scene_descriptions.append(
+            f"Scene '{scene.get('name', '?')}': {scene.get('visual_description', '')[:100]}"
+        )
+
+    eval_system = """You are a STRICT video quality evaluator for educational math/physics animations.
+You look at actual rendered frames and evaluate BOTH visual quality AND correctness.
+You must catch issues like: wrong chart proportions, misaligned fills, misleading visuals."""
 
     eval_prompt = f"""These are {len(frame_paths)} keyframes from an educational animation.
 Video title: {story.get('title', 'Unknown')}
-
 Frame timestamps: {', '.join(frame_labels)}
 
-NOTE: The FIRST frame (frame 1) is often black/empty — this is normal for Manim videos
-(the background renders before any animation starts). Do NOT penalize this.
+EXPECTED CONTENT (what the story intends to show):
+{chr(10).join(scene_descriptions)}
 
-For EACH frame (starting from frame 2), evaluate what you actually see:
-1. Is there content (not just black screen)?
-2. Is any text overlapping other text?
-3. Is text readable (size, contrast, positioning)?
-4. Is any content cut off at the edges?
-5. Is the visual composition clean and professional?
-6. Are colors appropriate (readable on black background)?
+For EACH frame, evaluate:
+
+A. VISUAL QUALITY:
+1. Is there content (not just black)?
+2. Is text overlapping other text?
+3. Is text readable (size, contrast, not cut off)?
+4. Is the composition clean?
+
+B. SEMANTIC CORRECTNESS (CRITICAL — most evaluators miss this):
+5. Do charts/graphs/visualizations accurately represent the data shown?
+   - Is a "50%" fill actually showing 50%? Or is it misaligned?
+   - Does a number line have correct spacing?
+   - Are proportions in diagrams correct?
+6. Does the visual match what the text/labels say?
+   - If text says "increases exponentially" does the curve look exponential?
+   - If it says "50.7%" is the visual approximately 50.7%, not 50%?
+7. Are mathematical shapes rendered correctly?
+   - Circles should be round, not oval
+   - Lines that should be straight ARE straight
+   - Fills/shading should align with boundaries
+
+C. PRODUCTION QUALITY:
+8. Does this look professional or amateurish?
+9. Would you be embarrassed to post this on YouTube?
 
 Return JSON:
 {{
   "frame_analysis": [
-    {{"frame": 1, "has_content": true, "overlap_detected": false, "text_readable": true, "cutoff": false, "composition": "good|fair|poor", "notes": "description of what you see"}}
+    {{"frame": 1, "has_content": true, "overlap_detected": false, "text_readable": true,
+      "cutoff": false, "semantic_correct": true, "composition": "good|fair|poor",
+      "notes": "description of what you see and any correctness issues"}}
   ],
   "blank_frame_count": 0,
   "overlap_detected_in_any": false,
   "cutoff_detected_in_any": false,
+  "semantic_issues": ["list of correctness problems — charts wrong, proportions off, etc"],
   "overall_visual_score": 7,
-  "visual_issues": ["list of specific issues seen in frames"],
+  "visual_issues": ["list of visual quality issues"],
   "visual_strengths": ["list of things that look good"]
 }}"""
 

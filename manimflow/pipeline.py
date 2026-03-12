@@ -210,12 +210,16 @@ def generate_video(
             frame_eval = evaluate_video_frames(video_path, story, output_dir)
             visual_score = frame_eval.get("overall_visual_score", None)
             visual_issues = frame_eval.get("visual_issues", [])
+            semantic_issues = frame_eval.get("semantic_issues", [])
             if visual_score:
                 _log(f"  Vision score: {visual_score}/10")
+            if semantic_issues:
+                for issue in semantic_issues[:3]:
+                    _log(f"    [SEMANTIC] {issue}")
             if visual_issues:
-                for issue in visual_issues[:5]:
+                for issue in visual_issues[:3]:
                     _log(f"    [VISION] {issue}")
-                vision_feedback = visual_issues
+                vision_feedback = visual_issues + [f"SEMANTIC: {s}" for s in semantic_issues]
 
         # Step 4b: Code-based evaluation
         evaluation = evaluate_frames_with_code(code, story)
