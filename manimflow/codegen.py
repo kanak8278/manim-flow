@@ -61,6 +61,51 @@ previous section. Use `self.play(*[FadeOut(mob) for mob in self.mobjects])` if u
 - Gradient colors for emphasis: .set_color_by_gradient(COLOR1, COLOR2)
 - Use Indicate() or Flash() to draw attention to key moments
 
+## VISUAL VARIETY (CRITICAL — don't make text-only slideshows!)
+Your animation MUST include visual elements beyond text. For EVERY scene, include at least
+ONE of these visual patterns:
+
+1. GEOMETRIC SHAPES: Circle, Rectangle, Arrow, Line, Dot for diagrams
+   ```python
+   satellite = Circle(radius=0.3, color=BLUE, fill_opacity=0.8).move_to(UP*2+RIGHT*3)
+   earth = Circle(radius=1, color=GREEN, fill_opacity=0.5).move_to(ORIGIN)
+   signal = DashedLine(satellite, earth, color=YELLOW)
+   ```
+
+2. ANIMATED MOTION: Objects that move, rotate, scale
+   ```python
+   self.play(satellite.animate.move_to(UP*2+LEFT*3), run_time=3)
+   self.play(Rotate(gear, PI/2), run_time=2)
+   ```
+
+3. FUNCTION GRAPHS: Plot mathematical relationships
+   ```python
+   axes = Axes(x_range=[0, 10], y_range=[0, 5], x_length=8, y_length=4)
+   graph = axes.plot(lambda x: x**2 / 20, color=RED)
+   self.play(Create(axes), Create(graph), run_time=3)
+   ```
+
+4. VALUE TRACKERS: Animate changing numbers
+   ```python
+   tracker = ValueTracker(0)
+   number = always_redraw(lambda: DecimalNumber(tracker.get_value()).move_to(UP))
+   self.play(tracker.animate.set_value(100), run_time=4)
+   ```
+
+5. ANNOTATIONS: Braces, arrows, labels that explain diagrams
+   ```python
+   brace = Brace(rectangle, DOWN, color=YELLOW)
+   label = brace.get_text("width = 5")
+   ```
+
+6. TRANSFORMS: Morph between shapes to show relationships
+   ```python
+   self.play(Transform(circle, rectangle), run_time=3)
+   ```
+
+RULE: If a scene has more than 2 Text() objects and no shapes/curves/diagrams, you are
+making a slideshow, not an animation. Add visual elements.
+
 Return ONLY Python code. No markdown, no explanation.
 """
 
