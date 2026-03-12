@@ -59,6 +59,60 @@ COLOR_FIXES = {
 }
 
 
+def _convert_mathtex_to_text(line: str) -> str:
+    """Convert a MathTex() call to Text() with readable math content."""
+    # Replace MathTex with Text
+    line = line.replace("MathTex(", "Text(")
+
+    # Convert LaTeX symbols to readable text
+    latex_to_text = {
+        "\\\\pi": "pi",
+        "\\pi": "pi",
+        "\\\\times": " x ",
+        "\\times": " x ",
+        "\\\\div": " / ",
+        "\\div": " / ",
+        "\\\\frac": "",
+        "\\frac": "",
+        "\\\\cdot": " . ",
+        "\\cdot": " . ",
+        "\\\\rightarrow": " -> ",
+        "\\rightarrow": " -> ",
+        "\\\\infty": "inf",
+        "\\infty": "inf",
+        "\\\\approx": " ~ ",
+        "\\approx": " ~ ",
+        "\\\\neq": " != ",
+        "\\neq": " != ",
+        "\\\\leq": " <= ",
+        "\\leq": " <= ",
+        "\\\\geq": " >= ",
+        "\\geq": " >= ",
+        "\\\\theta": "theta",
+        "\\theta": "theta",
+        "\\\\alpha": "alpha",
+        "\\alpha": "alpha",
+        "\\\\beta": "beta",
+        "\\beta": "beta",
+        "\\\\Delta": "Delta",
+        "\\Delta": "Delta",
+        "\\\\sqrt": "sqrt",
+        "\\sqrt": "sqrt",
+    }
+    for latex, text in latex_to_text.items():
+        line = line.replace(latex, text)
+
+    # Remove remaining backslashes (LaTeX commands we don't have mappings for)
+    # But preserve escaped quotes and actual backslashes in Python strings
+    # Only remove \command patterns inside string literals
+    line = re.sub(r'\\([a-zA-Z]+)', r'\1', line)
+
+    # Also handle: TransformMatchingTex -> Transform (since we're not using Tex anymore)
+    line = line.replace("TransformMatchingTex(", "Transform(")
+
+    return line
+
+
 def sanitize_code(code: str) -> tuple[str, list[str]]:
     """
     Fix common issues in generated Manim code.
@@ -88,25 +142,14 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
                 if line != original:
                     fixes.append(f"Line {i+1}: Replaced '{bad_pos}' with '{good_pos}'")
 
-        # Fix \\text{} in MathTex — replace with Text()
-        if "MathTex" in line and "\\text{" in line:
-            # Extract the \text{content} and convert MathTex to Text
-            import re as _re
-            text_match = _re.search(r'\\text\{([^}]+)\}', line)
-            if text_match:
-                text_content = text_match.group(1)
-                # Replace MathTex(r"\text{foo} = bar") with Text("foo = bar")
-                old_line = line
-                # Simple case: \text{} is the whole content
-                if "\\text{" in line and "MathTex" in line:
-                    # Convert to Text() — remove LaTeX formatting
-                    cleaned = _re.sub(r'\\text\{([^}]+)\}', r'\1', line)
-                    cleaned = cleaned.replace("MathTex", "Text")
-                    cleaned = cleaned.replace("\\pi", "pi").replace("\\times", "x")
-                    cleaned = cleaned.replace("\\frac", "").replace("\\", "")
-                    line = cleaned
-                    if line != old_line:
-                        fixes.append(f"Line {i+1}: Converted MathTex with \\text{{}} to Text()")
+        # Convert ALL MathTex to Text — avoids dvisvgm/LaTeX rendering issues entirely
+        # Our highest-scoring videos (7-8.5/10) all used Text() only
+        if "MathTex(" in line and "TransformMatchingTex" not in line:
+            old_line = line
+            # Convert LaTeX content to readable text
+            line = _convert_mathtex_to_text(line)
+            if line != old_line:
+                fixes.append(f"Line {i+1}: Converted MathTex to Text (avoids LaTeX rendering)")
 
         new_lines.append(line)
 

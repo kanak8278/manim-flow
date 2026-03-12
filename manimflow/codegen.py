@@ -14,7 +14,9 @@ CRITICAL RULES (violations cause crashes):
 6. Use np.array([x, y, 0]) for points
 7. For Transform: source must already be on screen via self.play() or self.add()
 8. Never use emojis in Text() — use VGroup with separate Text objects
-9. MathTex is for PURE MATH ONLY. NEVER use \text{} inside MathTex — it crashes.
+9. DO NOT USE MathTex. Use Text() for ALL content including math.
+   Write equations as readable text: "E = mc^2", "F = ma", "pi*r^2", "x^2 + y^2 = r^2"
+   This avoids LaTeX rendering issues entirely. Our best videos (8.5/10) use Text() only.
 10. For rate_func: use smooth, linear, rush_into, rush_from, there_and_back ONLY.
     DO NOT use ease_in_cubic, ease_out_cubic etc. — they don't exist as bare names.
 
