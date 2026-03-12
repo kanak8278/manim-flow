@@ -53,6 +53,38 @@ def generate_video(
     _log(f"  Story: \"{story.get('title', 'Untitled')}\"")
     _log(f"  Scenes: {len(story.get('scenes', []))}")
 
+    # === Step 1.5: Pre-generate voiceover to get timing ===
+    voiceover_result = None
+    if voice:
+        _log("\n--- Step 1.5: Pre-generating voiceover for timing ---")
+        try:
+            vo_dir = os.path.join(output_dir, "voiceover")
+            voiceover_result = generate_voiceover(story, vo_dir, voice=voice)
+
+            if voiceover_result.get("scene_timings"):
+                # Inject audio durations into story so code generation matches
+                for timing in voiceover_result["scene_timings"]:
+                    scene_id = timing["scene_id"]
+                    audio_dur = timing["duration"]
+                    for scene in story.get("scenes", []):
+                        if scene.get("id") == scene_id:
+                            scene["audio_duration"] = round(audio_dur, 1)
+                            scene["duration_seconds"] = round(audio_dur + 1.5, 1)  # +buffer
+                            break
+
+                _log(f"  Audio generated: {voiceover_result['total_duration']:.1f}s")
+                _log(f"  Scene timings injected into story")
+
+                # Re-save story with timing
+                with open(story_path, "w") as f:
+                    json.dump(story, f, indent=2)
+            else:
+                _log(f"  Voiceover failed: {voiceover_result.get('error', '')}")
+                voiceover_result = None
+        except Exception as e:
+            _log(f"  Voiceover pre-generation failed: {e}")
+            voiceover_result = None
+
     # === Step 2: Generate Manim Code ===
     _log("\n--- Step 2/4: Generating Manim code ---")
 
@@ -209,34 +241,23 @@ def generate_video(
         else:
             _log(f"  Accepting current quality (score: {overall}/10)")
 
-    # === Step 5: Voiceover (optional) ===
+    # === Step 5: Merge Voiceover (if pre-generated) ===
     final_video_path = video_path
-    voiceover_result = None
 
-    if voice:
-        _log("\n--- Step 5: Generating voiceover ---")
+    if voiceover_result and voiceover_result.get("audio_path"):
+        _log("\n--- Step 5: Merging voiceover with video ---")
         try:
-            vo_dir = os.path.join(output_dir, "voiceover")
-            voiceover_result = generate_voiceover(story, vo_dir, voice=voice)
-
-            if voiceover_result.get("audio_path"):
-                _log(f"  Audio: {voiceover_result['audio_path']}")
-                _log(f"  Duration: {voiceover_result['total_duration']:.1f}s")
-
-                # Merge video + audio
-                final_path = os.path.join(output_dir, "final_with_voiceover.mp4")
-                merge_result = merge_video_audio(
-                    video_path, voiceover_result["audio_path"], final_path
-                )
-                if merge_result["success"]:
-                    final_video_path = final_path
-                    _log(f"  Final video with voiceover: {final_path}")
-                else:
-                    _log(f"  Audio merge failed: {merge_result.get('error', '')[:100]}")
+            final_path = os.path.join(output_dir, "final_with_voiceover.mp4")
+            merge_result = merge_video_audio(
+                video_path, voiceover_result["audio_path"], final_path
+            )
+            if merge_result["success"]:
+                final_video_path = final_path
+                _log(f"  Final video: {final_path}")
             else:
-                _log(f"  Voiceover failed: {voiceover_result.get('error', 'unknown')}")
+                _log(f"  Merge failed: {merge_result.get('error', '')[:100]}")
         except Exception as e:
-            _log(f"  Voiceover error: {e}")
+            _log(f"  Merge error: {e}")
 
     _log(f"\n  Video ready: {final_video_path}")
 

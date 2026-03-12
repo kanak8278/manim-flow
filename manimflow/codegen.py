@@ -87,7 +87,9 @@ def generate_manim_code(story: dict) -> str:
         "- Keep all text within y=[-3.5, 3.5] screen bounds\n"
         "- Never overlap text elements at same vertical position\n"
         "- Use smooth or linear for rate_func (NOT ease_in_cubic etc.)\n"
-        "- No \\text{} in MathTex\n\n"
+        "- No \\text{} in MathTex\n"
+        "- If scenes have 'audio_duration', match total run_time + wait() to that duration\n"
+        "  Use self.wait() at end of each scene section to fill remaining time\n\n"
         "Return ONLY Python code, no markdown."
     )
 
