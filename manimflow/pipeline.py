@@ -309,7 +309,9 @@ def generate_video(
                     _log(f"  Mixed audio with ducking")
 
             # Merge final audio with video
-            final_path = os.path.join(output_dir, "final_with_voiceover.mp4")
+            # Name the final video prominently — this is what users should open
+            title_slug = story.get("title", "video")[:40].replace(" ", "_").replace("/", "_")
+            final_path = os.path.join(output_dir, f"{title_slug}_FINAL.mp4")
             merge_result = merge_video_audio(video_path, audio_path, final_path)
             if merge_result["success"]:
                 final_video_path = final_path
