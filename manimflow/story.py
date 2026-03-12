@@ -2,6 +2,7 @@
 
 from .llm import call_llm, extract_json
 from .categories import get_category, suggest_category
+from .engagement import get_engagement_context
 
 # Duration presets — think like a content creator
 DURATION_PRESETS = {
@@ -173,7 +174,7 @@ def generate_story(topic: str, duration_seconds: int = 120,
     # Use category's recommended duration if not explicitly set
     preset = _get_duration_preset(duration_seconds)
 
-    # Build category-specific hints
+    # Build category-specific hints + engagement patterns
     category_context = ""
     if cat:
         category_context = (
@@ -181,6 +182,10 @@ def generate_story(topic: str, duration_seconds: int = 120,
             f"STORYTELLING APPROACH: {cat.story_hints}\n"
             f"VISUAL STYLE: {cat.visual_style}\n"
         )
+
+    # Add research-backed engagement patterns
+    engagement_context = get_engagement_context(category)
+    category_context += f"\n{engagement_context}\n"
 
     system_prompt = STORY_SYSTEM_PROMPT_TEMPLATE.format(
         structure=preset["structure"],
