@@ -13,6 +13,7 @@ from .evaluator import (
 from .spatial_analyzer import analyze_scene, print_spatial_analysis
 from .code_sanitizer import sanitize_code
 from .voiceover import generate_voiceover, merge_video_audio
+from .code_editor import surgical_fix
 
 
 def generate_video(
@@ -223,7 +224,17 @@ def generate_video(
                 all_feedback += [f"[VISION] {v}" for v in vision_feedback[:3]]
 
             feedback = "Fix these issues:\n" + "\n".join(all_feedback)
-            code = fix_manim_code(code, feedback)
+
+            # Use surgical editor (targeted edits) instead of full rewrite
+            # This prevents re-introducing bugs the sanitizer already fixed
+            _log("  Applying surgical fixes...")
+            new_code = surgical_fix(code, feedback)
+            if new_code != code:
+                code = new_code
+            else:
+                # Surgical fix didn't change anything — fall back to full rewrite
+                _log("  Surgical fix had no effect, trying full rewrite...")
+                code = fix_manim_code(code, feedback)
             code, _ = sanitize_code(code)
             with open(code_path, "w") as f:
                 f.write(code)
