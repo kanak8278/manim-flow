@@ -1,7 +1,7 @@
 # ManimFlow
 
-Generate math and physics explainer videos from text. Type a topic, get a video with voiceover.
-
+ManimFlow generates educational math/physics explainer videos from a text prompt — you type a topic like "Why is 0.999... = 1?" and it produces a complete animated video with
+voiceover, background music, and a thumbnail, using Manim (3Blue1Brown's animation engine) and Claude for story/code generation.
 ```bash
 uv run manimflow "Why is 0.999... exactly equal to 1?"
 ```
