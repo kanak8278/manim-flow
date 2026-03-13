@@ -9,15 +9,34 @@ from .topics import get_suggested_topics
 
 
 def main():
+    # Handle subcommands first (before argparse, to avoid conflict with topic positional)
+    if len(sys.argv) >= 2:
+        if sys.argv[1] == "categories":
+            _print_categories()
+            return
+        if sys.argv[1] == "topics":
+            # Parse topics-specific args
+            count = 10
+            category = None
+            for i, arg in enumerate(sys.argv[2:], 2):
+                if arg in ("--count", "-n") and i + 1 < len(sys.argv):
+                    count = int(sys.argv[i + 1])
+                if arg in ("--category", "-c") and i + 1 < len(sys.argv):
+                    category = sys.argv[i + 1]
+            _print_topics(category, count)
+            return
+
     parser = argparse.ArgumentParser(
         description="ManimFlow - Generate math/physics explainer videos from text",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  manimflow "Why is e^(ipi) = -1?"
-  manimflow "Explain the Pythagorean theorem" --quality h --duration 300
-  manimflow "What is a derivative?" --category proof
-  manimflow "The butterfly curve" --category visual_beauty --duration 60
+  uv run manimflow "Why is e^(ipi) = -1?"
+  uv run manimflow "Explain the Pythagorean theorem" --quality h --duration 300
+  uv run manimflow "What is a derivative?" --category proof
+  uv run manimflow "The butterfly curve" --category visual_beauty --duration 60
+  uv run manimflow topics
+  uv run manimflow categories
 
 Categories:
   mind_blown      Paradoxes, surprising results
@@ -30,24 +49,14 @@ Categories:
         """,
     )
 
-    subparsers = parser.add_subparsers(dest="command")
-
-    # Subcommands
-    subparsers.add_parser("categories", help="List available content categories")
-    topics_parser = subparsers.add_parser("topics", help="Get suggested topics")
-    topics_parser.add_argument("--category", "-c", default=None, help="Filter by category")
-    topics_parser.add_argument("--count", "-n", type=int, default=10, help="Number of topics")
-
-    # Default: generate video
     parser.add_argument(
         "topic",
-        nargs="?",
         help="Math/physics question, equation, or concept to explain",
     )
     parser.add_argument(
         "--output", "-o",
-        default="output",
-        help="Output directory (default: output)",
+        default=None,
+        help="Output directory (default: output/<timestamp>)",
     )
     parser.add_argument(
         "--quality", "-q",
@@ -98,17 +107,11 @@ Categories:
 
     args = parser.parse_args()
 
-    # Handle subcommands
-    if args.command == "categories":
-        _print_categories()
-        return
-    if args.command == "topics":
-        _print_topics(args.category, args.count)
-        return
-
-    if not args.topic:
-        parser.print_help()
-        sys.exit(1)
+    # Auto-generate output dir from timestamp if not provided
+    if args.output is None:
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        args.output = f"output/{ts}"
 
     result = generate_video(
         topic=args.topic,

@@ -3,7 +3,7 @@
 Generate math and physics explainer videos from text. Type a topic, get a video with voiceover.
 
 ```bash
-manimflow "Why is 0.999... exactly equal to 1?"
+uv run manimflow "Why is 0.999... exactly equal to 1?"
 ```
 
 ## What it does
@@ -32,6 +32,10 @@ uv sync
 
 # Set your Anthropic API key
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+
+# Run (prefix all commands with `uv run`)
+export $(cat .env | xargs)
+uv run manimflow "Why is 0.999... equal to 1?"
 ```
 
 ### System dependencies
@@ -50,7 +54,7 @@ brew install ffmpeg
 
 ```bash
 # Basic -- 2-minute explainer with voiceover
-manimflow "Why is the area of a circle pi*r^2?"
+uv run manimflow "Why is the area of a circle pi*r^2?"
 
 # Specify duration
 manimflow "The Monty Hall Problem" --duration 120
