@@ -43,9 +43,17 @@ RULES FOR VOICEOVER BLOCKS:
 - Use tracker.duration for animations that should fill the whole narration
 - Use tracker.time_until_bookmark("X") for animations between bookmarks
 - Keep narration text CONCISE — 2-3 sentences per voiceover block
-- Between voiceover blocks, add self.wait(0.5) for breathing room
-- FadeOut previous scene elements BEFORE the next voiceover block
-- Narration should describe what's visually happening
+
+CRITICAL: NEVER have black/empty screen while voice is talking!
+- ALWAYS put a <bookmark mark="start"/> at the VERY BEGINNING of the narration text
+- The first animation inside the block must trigger at bookmark "start"
+- This ensures a visual appears as soon as the voice starts speaking
+- Example: text='<bookmark mark="start"/>Watch as <bookmark mark="circle"/>the circle appears'
+  self.wait_until_bookmark("start")
+  self.play(Write(title), run_time=1)  # title appears with first word
+
+- FadeOut previous elements INSIDE the voiceover block, AFTER the new visual appears
+  (this avoids the black gap between scenes)
 
 EXAMPLE SCENE:
 ```python
