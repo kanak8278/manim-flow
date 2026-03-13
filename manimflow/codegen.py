@@ -66,13 +66,9 @@ def generate_manim_code(story: dict) -> str:
     """Generate Manim code from a story script."""
     target_duration = story.get("duration_target", 120)
 
-    # Build per-scene timing budget if audio durations are available
-    timing_instructions = _build_timing_instructions(story)
-
     user_prompt = (
         f"Generate a complete Manim scene (~{target_duration}s) for this story:\n\n"
         + json.dumps(story, indent=2)
-        + timing_instructions
         + "\n\nCRITICAL: Every scene must have visual elements (shapes, curves, diagrams) "
         "not just text. FadeOut everything between scenes. Use Transform() for equation "
         "progression. No MathTex — use Text() only. Return ONLY Python code."

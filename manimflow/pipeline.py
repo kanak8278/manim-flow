@@ -15,6 +15,7 @@ from .code_sanitizer import sanitize_code
 from .voiceover import generate_voiceover, merge_video_audio
 from .music import select_mood, generate_ambient_track, mix_audio_tracks
 from .thumbnail import generate_thumbnail_with_title
+from .timing import extract_scene_timings, rewrite_narration_for_timing, get_video_duration
 from .code_editor import surgical_fix
 from .platform import PlatformConfig, get_platform_config, config_to_story_context
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
@@ -86,48 +87,10 @@ def generate_video(
             json.dump(story, f, indent=2)
         _log(f"  Improved story: \"{story.get('title', 'Untitled')}\"")
 
-    # === Step 1.7: Pre-generate voiceover to get timing ===
-    voiceover_result = None
-    if voice:
-        _log("\n--- Step 1.5: Pre-generating voiceover for timing ---")
-        try:
-            vo_dir = os.path.join(output_dir, "voiceover")
-            voiceover_result = generate_voiceover(story, vo_dir, voice=voice)
-
-            if voiceover_result.get("scene_timings"):
-                # Inject audio durations into story so code generation matches
-                for timing in voiceover_result["scene_timings"]:
-                    scene_id = timing["scene_id"]
-                    audio_dur = timing["duration"]
-                    for scene in story.get("scenes", []):
-                        if scene.get("id") == scene_id:
-                            scene["audio_duration"] = round(audio_dur, 1)
-                            scene["duration_seconds"] = round(audio_dur + 1.5, 1)  # +buffer
-                            break
-
-                _log(f"  Audio generated: {voiceover_result['total_duration']:.1f}s")
-                _log(f"  Scene timings injected into story")
-
-                # Re-save story with timing
-                with open(story_path, "w") as f:
-                    json.dump(story, f, indent=2)
-            else:
-                _log(f"  Voiceover failed: {voiceover_result.get('error', '')}")
-                voiceover_result = None
-        except Exception as e:
-            _log(f"  Voiceover pre-generation failed: {e}")
-            voiceover_result = None
-
-    # === Step 2: Generate Manim Code ===
-    _log("\n--- Step 2/4: Generating Manim code ---")
+    # === Step 2: Generate Manim Code (VIDEO FIRST — audio adapts to video later) ===
+    _log("\n--- Step 2: Generating Manim code ---")
 
     code = generate_manim_code(story)
-
-    # Inject target duration as comment so sanitizer can verify timing
-    if voiceover_result and voiceover_result.get("total_duration"):
-        target_dur = int(voiceover_result["total_duration"])
-        code = f"# TOTAL TARGET DURATION: {target_dur}s (must match voiceover)\n" + code
-
     code_path = os.path.join(output_dir, "scene.py")
     with open(code_path, "w") as f:
         f.write(code)
@@ -310,41 +273,62 @@ def generate_video(
         else:
             _log(f"  Accepting current quality (score: {overall}/10)")
 
-    # === Step 5: Merge Voiceover (if pre-generated) ===
+    # === Step 5: Audio Production (VIDEO DRIVES AUDIO — not the other way around) ===
     final_video_path = video_path
+    voiceover_result = None
 
-    if voiceover_result and voiceover_result.get("audio_path"):
-        _log("\n--- Step 5: Audio production ---")
+    if voice:
+        _log("\n--- Step 5: Audio production (fitting narration to video) ---")
         try:
-            audio_path = voiceover_result["audio_path"]
-            audio_duration = voiceover_result.get("total_duration", 60)
+            vo_dir = os.path.join(output_dir, "voiceover")
+            video_dur = get_video_duration(video_path)
+            _log(f"  Video duration: {video_dur:.1f}s")
 
-            # Generate background music
-            category = story.get("category", "formula")
-            mood = select_mood(category)
-            music_path = os.path.join(output_dir, "voiceover", "background_music.mp3")
-            music_result = generate_ambient_track(music_path, audio_duration + 5, mood=mood)
+            # 5a: Analyze actual scene timings from the rendered code
+            scene_timings = extract_scene_timings(code)
+            if scene_timings:
+                _log(f"  Scene timings extracted: {len(scene_timings)} scenes")
+                for st in scene_timings:
+                    _log(f"    {st['name'][:30]:30s} {st['duration']:.1f}s")
 
-            if music_result.get("success"):
-                _log(f"  Background music: {mood} ({audio_duration:.0f}s)")
+                # 5b: Rewrite narration to fit actual video timing
+                _log(f"  Rewriting narration to match video timing...")
+                story = rewrite_narration_for_timing(story, scene_timings)
+                with open(story_path, "w") as f:
+                    json.dump(story, f, indent=2)
 
-                # Mix voiceover + music with ducking
-                mixed_path = os.path.join(output_dir, "voiceover", "mixed_audio.mp3")
-                mix_result = mix_audio_tracks(audio_path, music_path, mixed_path)
-                if mix_result.get("success"):
-                    audio_path = mixed_path
-                    _log(f"  Mixed audio with ducking")
+            # 5c: Generate voiceover from timing-matched narration
+            voiceover_result = generate_voiceover(story, vo_dir, voice=voice)
 
-            # Merge final audio with video
-            # Name the final video prominently — this is what users should open
-            title_slug = story.get("title", "video")[:40].replace(" ", "_").replace("/", "_")
-            final_path = os.path.join(output_dir, f"{title_slug}_FINAL.mp4")
-            merge_result = merge_video_audio(video_path, audio_path, final_path)
-            if merge_result["success"]:
-                final_video_path = final_path
-                _log(f"  Final video: {final_path}")
+            if voiceover_result and voiceover_result.get("audio_path"):
+                audio_path = voiceover_result["audio_path"]
+                audio_dur = voiceover_result.get("total_duration", 0)
+                _log(f"  Voiceover: {audio_dur:.1f}s (video: {video_dur:.1f}s, diff: {abs(audio_dur - video_dur):.1f}s)")
+
+                # 5d: Background music
+                category = story.get("category", "formula")
+                mood = select_mood(category)
+                music_path = os.path.join(vo_dir, "background_music.mp3")
+                music_result = generate_ambient_track(music_path, video_dur + 5, mood=mood)
+
+                if music_result.get("success"):
+                    _log(f"  Background music: {mood}")
+                    mixed_path = os.path.join(vo_dir, "mixed_audio.mp3")
+                    mix_result = mix_audio_tracks(audio_path, music_path, mixed_path)
+                    if mix_result.get("success"):
+                        audio_path = mixed_path
+
+                # 5e: Merge audio with video
+                title_slug = story.get("title", "video")[:40].replace(" ", "_").replace("/", "_")
+                final_path = os.path.join(output_dir, f"{title_slug}_FINAL.mp4")
+                merge_result = merge_video_audio(video_path, audio_path, final_path)
+                if merge_result["success"]:
+                    final_video_path = final_path
+                    _log(f"  Final video: {final_path}")
+                else:
+                    _log(f"  Merge failed: {merge_result.get('error', '')[:100]}")
             else:
-                _log(f"  Merge failed: {merge_result.get('error', '')[:100]}")
+                _log(f"  Voiceover failed: {voiceover_result.get('error', '') if voiceover_result else 'unknown'}")
         except Exception as e:
             _log(f"  Audio production error: {e}")
 
