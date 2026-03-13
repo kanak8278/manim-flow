@@ -329,7 +329,14 @@ def _parse_animation(line: str, line_num: int, elements: dict, on_screen: set) -
             names = [n.strip() for n in m.group(1).split(",")]
             add_names.extend(names)
 
-    # Detect removals
+    # Detect bulk removal (self.mobjects pattern = remove ALL)
+    if "self.mobjects" in line:
+        # This clears everything — return all on-screen elements as removed
+        all_on_screen = list(on_screen)
+        if all_on_screen:
+            return ("remove", all_on_screen, run_time)
+
+    # Detect individual removals
     remove_names = []
     for pattern in [r"FadeOut\((\w+)", r"Uncreate\((\w+)", r"Unwrite\((\w+)"]:
         for m in re.finditer(pattern, line):

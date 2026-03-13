@@ -157,32 +157,34 @@ def _estimate_target_duration(code: str) -> float:
 def _inject_scene_cleanup(lines: list[str], fixes: list[str]) -> list[str]:
     """Auto-inject FadeOut between scene sections.
 
-    Detects scene boundaries from comments like '# === SCENE' or '# Scene N'
-    and inserts `self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)`
-    before each new scene starts (if not already present).
+    Detects scene boundaries from:
+    - Comments like '# === SCENE' or '# Scene N'
+    - `with self.voiceover(` blocks (manim-voiceover scenes)
+    Inserts cleanup before each new scene starts.
     """
     result = []
-    scene_boundary_pattern = re.compile(
-        r'^\s*#\s*={2,}.*(?:scene|act|section|part)\s*',
-        re.IGNORECASE,
-    )
-    prev_was_boundary = False
+    boundary_patterns = [
+        re.compile(r'^\s*#\s*={2,}.*(?:scene|act|section|part)\s*', re.IGNORECASE),
+        re.compile(r'^\s*with\s+self\.voiceover\('),
+    ]
     injected_count = 0
 
     for i, line in enumerate(lines):
-        # Detect scene boundary comments
-        if scene_boundary_pattern.search(line):
-            # Check if there's already a FadeOut nearby (within 3 lines before)
-            recent = "\n".join(lines[max(0, i-3):i])
-            if "FadeOut" not in recent and "self.mobjects" not in recent and i > 10:
-                # Inject cleanup before this scene boundary
+        is_boundary = any(p.search(line) for p in boundary_patterns)
+
+        if is_boundary and i > 10:
+            # Check the lines before this boundary
+            recent = "\n".join(lines[max(0, i-5):i])
+
+            if "self.mobjects" not in recent:
+                # There's a FadeOut but it might be PARTIAL (missing elements).
+                # Or there's no FadeOut at all.
+                # Inject a catch-all cleanup that clears everything.
                 indent = "        "  # 8 spaces (inside construct method)
-                cleanup_line = f"{indent}self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)"
+                # Always use the same catch-all pattern (analyzable + animated)
+                cleanup_line = f"{indent}self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)  # auto-cleanup"
                 result.append(cleanup_line)
                 injected_count += 1
-            prev_was_boundary = True
-        else:
-            prev_was_boundary = False
 
         result.append(line)
 
