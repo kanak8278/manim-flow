@@ -9,6 +9,10 @@ dependencies = [
     "certifi>=2026.2.25",
     "edge-tts>=7.2.7",
     "manim>=0.19.0",
+    "manim-voiceover[azure,gtts]>=0.3.7",
+    "openai-whisper>=20250625",
+    "setuptools<81",
+    "stable-ts>=2.19.1",
     "truststore>=0.10.4",
 ]
 

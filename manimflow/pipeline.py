@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 
 from .story import generate_story
 from .codegen import generate_manim_code, fix_manim_code
@@ -273,64 +274,50 @@ def generate_video(
         else:
             _log(f"  Accepting current quality (score: {overall}/10)")
 
-    # === Step 5: Audio Production (VIDEO DRIVES AUDIO — not the other way around) ===
+    # === Step 5: Add Background Music ===
+    # Note: Voiceover is now baked into the render via manim-voiceover.
+    # We only need to add background music on top.
     final_video_path = video_path
-    voiceover_result = None
 
     if voice:
-        _log("\n--- Step 5: Audio production (fitting narration to video) ---")
+        _log("\n--- Step 5: Adding background music ---")
         try:
-            vo_dir = os.path.join(output_dir, "voiceover")
             video_dur = get_video_duration(video_path)
-            _log(f"  Video duration: {video_dur:.1f}s")
+            category = story.get("category", "formula")
+            mood = select_mood(category)
 
-            # 5a: Analyze actual scene timings from the rendered code
-            scene_timings = extract_scene_timings(code)
-            if scene_timings:
-                _log(f"  Scene timings extracted: {len(scene_timings)} scenes")
-                for st in scene_timings:
-                    _log(f"    {st['name'][:30]:30s} {st['duration']:.1f}s")
+            vo_dir = os.path.join(output_dir, "audio")
+            os.makedirs(vo_dir, exist_ok=True)
 
-                # 5b: Rewrite narration to fit actual video timing
-                _log(f"  Rewriting narration to match video timing...")
-                story = rewrite_narration_for_timing(story, scene_timings)
-                with open(story_path, "w") as f:
-                    json.dump(story, f, indent=2)
+            music_path = os.path.join(vo_dir, "background_music.mp3")
+            music_result = generate_ambient_track(music_path, video_dur + 5, mood=mood)
 
-            # 5c: Generate voiceover from timing-matched narration
-            voiceover_result = generate_voiceover(story, vo_dir, voice=voice)
+            if music_result.get("success"):
+                _log(f"  Background music: {mood} ({video_dur:.0f}s)")
 
-            if voiceover_result and voiceover_result.get("audio_path"):
-                audio_path = voiceover_result["audio_path"]
-                audio_dur = voiceover_result.get("total_duration", 0)
-                _log(f"  Voiceover: {audio_dur:.1f}s (video: {video_dur:.1f}s, diff: {abs(audio_dur - video_dur):.1f}s)")
-
-                # 5d: Background music
-                category = story.get("category", "formula")
-                mood = select_mood(category)
-                music_path = os.path.join(vo_dir, "background_music.mp3")
-                music_result = generate_ambient_track(music_path, video_dur + 5, mood=mood)
-
-                if music_result.get("success"):
-                    _log(f"  Background music: {mood}")
-                    mixed_path = os.path.join(vo_dir, "mixed_audio.mp3")
-                    mix_result = mix_audio_tracks(audio_path, music_path, mixed_path)
-                    if mix_result.get("success"):
-                        audio_path = mixed_path
-
-                # 5e: Merge audio with video
+                # Mix music with existing video audio (voiceover is already in the video)
                 title_slug = story.get("title", "video")[:40].replace(" ", "_").replace("/", "_")
                 final_path = os.path.join(output_dir, f"{title_slug}_FINAL.mp4")
-                merge_result = merge_video_audio(video_path, audio_path, final_path)
-                if merge_result["success"]:
-                    final_video_path = final_path
-                    _log(f"  Final video: {final_path}")
+
+                # Extract video's audio (voiceover), mix with music, re-merge
+                vo_extract = os.path.join(vo_dir, "voiceover_extracted.mp3")
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", video_path,
+                    "-vn", "-c:a", "libmp3lame", "-q:a", "2", vo_extract,
+                ], capture_output=True, text=True)
+
+                if os.path.exists(vo_extract) and os.path.getsize(vo_extract) > 1000:
+                    mixed_path = os.path.join(vo_dir, "mixed_audio.mp3")
+                    mix_result = mix_audio_tracks(vo_extract, music_path, mixed_path)
+                    if mix_result.get("success"):
+                        merge_result = merge_video_audio(video_path, mixed_path, final_path)
+                        if merge_result["success"]:
+                            final_video_path = final_path
+                            _log(f"  Final video with music: {final_path}")
                 else:
-                    _log(f"  Merge failed: {merge_result.get('error', '')[:100]}")
-            else:
-                _log(f"  Voiceover failed: {voiceover_result.get('error', '') if voiceover_result else 'unknown'}")
+                    _log(f"  No voiceover audio in video (voice=none mode)")
         except Exception as e:
-            _log(f"  Audio production error: {e}")
+            _log(f"  Music production error: {e}")
 
     # === Step 6: Generate Thumbnail ===
     thumbnail_path = ""
