@@ -1,0 +1,333 @@
+{
+  "title": "Why Your Brain is Wrong About the Monty Hall Problem",
+  "duration_target": 120,
+  "hook_question": "Would you bet your life savings on switching doors in the Monty Hall game show?",
+  "scenes": [
+    {
+      "id": 1,
+      "name": "the_shocking_claim",
+      "duration_seconds": 14.9,
+      "narration": "Most people think switching doors gives you the same 50-50 chance. They're dead wrong. Switching actually doubles your odds of winning. Your brain is lying to you, and I can prove it.",
+      "visual_description": "Three doors appear, middle one glowing. Door opens to reveal a car. Bold text shows '50% vs 67%' with the 67% pulsing dramatically in red.",
+      "animations": [
+        {
+          "type": "text",
+          "content": "3 DOORS",
+          "position": "UP*2",
+          "color": "WHITE",
+          "font_size": 48,
+          "run_time": 2
+        },
+        {
+          "type": "text",
+          "content": "1 CAR",
+          "position": "CENTER",
+          "color": "GOLD",
+          "font_size": 48,
+          "run_time": 2
+        },
+        {
+          "type": "text",
+          "content": "STAY: 50%    SWITCH: 67%",
+          "position": "DOWN*1.5",
+          "color": "RED",
+          "font_size": 42,
+          "run_time": 4
+        },
+        {
+          "type": "highlight",
+          "content": "67%",
+          "position": "DOWN*1.5",
+          "color": "BRIGHT_RED",
+          "font_size": 42,
+          "run_time": 3
+        }
+      ],
+      "teaching_goal": "Create disbelief and curiosity about the counterintuitive result",
+      "audio_duration": 13.4
+    },
+    {
+      "id": 2,
+      "name": "setup_the_game",
+      "duration_seconds": 19.2,
+      "narration": "Here's the setup. Three doors, one car, two goats. You pick door 1. Monty, who knows what's behind every door, opens door 3 to reveal a goat. Now he asks: stick with door 1, or switch to door 2?",
+      "visual_description": "Clean animation showing three doors labeled 1, 2, 3. Player picks door 1 (glows blue). Door 3 opens showing a goat. Doors 1 and 2 remain, with an arrow showing the choice between staying and switching.",
+      "animations": [
+        {
+          "type": "fadeout",
+          "content": "previous_text",
+          "position": "ALL",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 1
+        },
+        {
+          "type": "text",
+          "content": "DOOR 1    DOOR 2    DOOR 3",
+          "position": "UP*2",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 3
+        },
+        {
+          "type": "highlight",
+          "content": "DOOR 1",
+          "position": "UP*2",
+          "color": "BLUE",
+          "font_size": 36,
+          "run_time": 2
+        },
+        {
+          "type": "text",
+          "content": "GOAT REVEALED",
+          "position": "CENTER",
+          "color": "GRAY",
+          "font_size": 32,
+          "run_time": 2
+        },
+        {
+          "type": "text",
+          "content": "STAY or SWITCH?",
+          "position": "DOWN*1.5",
+          "color": "YELLOW",
+          "font_size": 40,
+          "run_time": 3
+        }
+      ],
+      "teaching_goal": "Establish the game rules and the moment of choice clearly",
+      "audio_duration": 17.7
+    },
+    {
+      "id": 3,
+      "name": "intuition_says_fifty_fifty",
+      "duration_seconds": 17.1,
+      "narration": "Your brain screams 50-50. Two doors left, one car. Makes sense, right? This is where most people get trapped. But here's the thing: probability isn't reset when Monty opens that door.",
+      "visual_description": "Two doors remain on screen, equal sized, with '50%' floating above each. Then a big red X appears over this, and the percentages change to show the real odds.",
+      "animations": [
+        {
+          "type": "fadeout",
+          "content": "previous_text",
+          "position": "ALL",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 1
+        },
+        {
+          "type": "text",
+          "content": "50%        50%",
+          "position": "UP*1",
+          "color": "WHITE",
+          "font_size": 48,
+          "run_time": 3
+        },
+        {
+          "type": "text",
+          "content": "TWO DOORS = EQUAL ODDS?",
+          "position": "CENTER",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 3
+        },
+        {
+          "type": "text",
+          "content": "\u274c WRONG!",
+          "position": "DOWN*1",
+          "color": "RED",
+          "font_size": 54,
+          "run_time": 2
+        },
+        {
+          "type": "transform",
+          "content": "50% \u2192 33%    50% \u2192 67%",
+          "position": "UP*1",
+          "color": "GREEN",
+          "font_size": 48,
+          "run_time": 4
+        }
+      ],
+      "teaching_goal": "Challenge the 50-50 intuition and show the real probabilities",
+      "audio_duration": 15.6
+    },
+    {
+      "id": 4,
+      "name": "the_key_insight",
+      "duration_seconds": 16.5,
+      "narration": "Think about your first choice. You had a 1 in 3 shot at the car, right? That means there's a 2 in 3 chance the car is behind one of the other doors. When Monty removes a goat, he doesn't change your original odds. That 2/3 probability doesn't vanish\u2014it all concentrates on the remaining door.",
+      "visual_description": "Visual showing the probability flow. Initial choice shows 1/3, other two doors show 2/3. When one door is eliminated, the 2/3 flows entirely to the remaining door.",
+      "animations": [
+        {
+          "type": "fadeout",
+          "content": "previous_text",
+          "position": "ALL",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 1
+        },
+        {
+          "type": "text",
+          "content": "YOUR FIRST CHOICE:",
+          "position": "UP*2",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 2
+        },
+        {
+          "type": "equation",
+          "content": "P(Door 1) = 1/3",
+          "position": "UP*0.5",
+          "color": "BLUE",
+          "font_size": 42,
+          "run_time": 3
+        },
+        {
+          "type": "equation",
+          "content": "P(Other doors) = 2/3",
+          "position": "CENTER",
+          "color": "GREEN",
+          "font_size": 42,
+          "run_time": 3
+        },
+        {
+          "type": "text",
+          "content": "MONTY REMOVES GOAT",
+          "position": "DOWN*0.5",
+          "color": "GRAY",
+          "font_size": 32,
+          "run_time": 2
+        },
+        {
+          "type": "transform",
+          "content": "2/3 \u2192 Door 2",
+          "position": "DOWN*1.5",
+          "color": "BRIGHT_GREEN",
+          "font_size": 48,
+          "run_time": 4
+        }
+      ],
+      "teaching_goal": "Show how probability concentrates rather than resets",
+      "audio_duration": 15.0
+    },
+    {
+      "id": 5,
+      "name": "the_aha_moment",
+      "duration_seconds": 28.9,
+      "narration": "Here's the mind-bender: imagine 1000 doors instead of 3. You pick one. Monty opens 998 doors, all with goats. One door remains. Would you switch now? Of course! Your door still has that tiny 1/1000 chance. The other door has 999/1000. Same logic applies to three doors.",
+      "visual_description": "Dramatic visual scaling from 3 doors to 1000 doors, then back to 3. The probability concentration effect becomes obvious at scale, then the insight transfers back to the original problem.",
+      "animations": [
+        {
+          "type": "fadeout",
+          "content": "previous_text",
+          "position": "ALL",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 1
+        },
+        {
+          "type": "text",
+          "content": "IMAGINE 1000 DOORS",
+          "position": "UP*2",
+          "color": "PURPLE",
+          "font_size": 44,
+          "run_time": 3
+        },
+        {
+          "type": "equation",
+          "content": "Your door: 1/1000",
+          "position": "UP*0.5",
+          "color": "BLUE",
+          "font_size": 38,
+          "run_time": 3
+        },
+        {
+          "type": "equation",
+          "content": "Other door: 999/1000",
+          "position": "CENTER",
+          "color": "BRIGHT_GREEN",
+          "font_size": 38,
+          "run_time": 3
+        },
+        {
+          "type": "text",
+          "content": "SAME LOGIC!",
+          "position": "DOWN*1",
+          "color": "YELLOW",
+          "font_size": 48,
+          "run_time": 2
+        },
+        {
+          "type": "transform",
+          "content": "1/3 vs 2/3",
+          "position": "DOWN*2",
+          "color": "GOLD",
+          "font_size": 52,
+          "run_time": 4
+        }
+      ],
+      "teaching_goal": "Make the principle crystal clear through extreme example",
+      "audio_duration": 27.4
+    },
+    {
+      "id": 6,
+      "name": "the_bigger_truth",
+      "duration_seconds": 19.3,
+      "narration": "This isn't just about game shows. It's about how information changes probabilities. Monty's choice to show you a goat isn't random\u2014it's strategic information. In a world full of strategic information, your first instincts about probability will fool you every single time.",
+      "visual_description": "Final scene showing the core insight with clean typography. The Monty Hall problem transforms into a broader lesson about information and probability in life.",
+      "animations": [
+        {
+          "type": "fadeout",
+          "content": "previous_text",
+          "position": "ALL",
+          "color": "WHITE",
+          "font_size": 36,
+          "run_time": 1
+        },
+        {
+          "type": "text",
+          "content": "INFORMATION \u2260 RANDOM",
+          "position": "UP*1.5",
+          "color": "WHITE",
+          "font_size": 44,
+          "run_time": 4
+        },
+        {
+          "type": "text",
+          "content": "Strategic reveals change everything",
+          "position": "CENTER",
+          "color": "BLUE",
+          "font_size": 36,
+          "run_time": 4
+        },
+        {
+          "type": "text",
+          "content": "Always switch. Always question your intuition.",
+          "position": "DOWN*1.5",
+          "color": "GOLD",
+          "font_size": 38,
+          "run_time": 6
+        }
+      ],
+      "teaching_goal": "Connect the specific problem to broader principles about probability and decision-making",
+      "audio_duration": 17.8
+    }
+  ],
+  "color_scheme": {
+    "primary": "BLUE",
+    "secondary": "GREEN",
+    "accent": "YELLOW",
+    "highlight": "RED"
+  },
+  "math_components": {
+    "equations": [
+      "P(Door 1) = 1/3",
+      "P(Other doors) = 2/3",
+      "1/1000 vs 999/1000"
+    ],
+    "variables": {
+      "P": "Probability",
+      "1/3": "Initial choice odds",
+      "2/3": "Switching odds"
+    },
+    "key_insight": "Information from strategic reveals concentrates probability rather than resetting it"
+  },
+  "category": "mind_blown"
+}
