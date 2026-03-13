@@ -113,6 +113,47 @@ def _convert_mathtex_to_text(line: str) -> str:
     return line
 
 
+def _estimate_code_duration(lines: list[str]) -> float:
+    """Estimate total animation duration from run_time and wait() calls."""
+    total = 0
+    for line in lines:
+        if "run_time=" in line:
+            try:
+                rt = float(re.search(r'run_time\s*=\s*([0-9.]+)', line).group(1))
+                total += rt
+            except (AttributeError, ValueError):
+                total += 1  # default run_time
+        elif "self.wait(" in line:
+            try:
+                wt = float(re.search(r'self\.wait\(([0-9.]+)', line).group(1))
+                total += wt
+            except (AttributeError, ValueError):
+                total += 1
+        elif "self.play(" in line and "run_time" not in line:
+            total += 1  # default 1s for play() without explicit run_time
+    return total
+
+
+def _estimate_target_duration(code: str) -> float:
+    """Extract target duration from the injected comment."""
+    # Look for: # TOTAL TARGET DURATION: 112s
+    m = re.search(r'# TOTAL TARGET DURATION:\s*(\d+)s', code)
+    if m:
+        return float(m.group(1))
+
+    # Fallback: look for any duration hint
+    m = re.search(r'# TOTAL.*?(\d+)s', code, re.IGNORECASE)
+    if m:
+        return float(m.group(1))
+
+    # Count scenes and estimate 15s each
+    scene_count = len(re.findall(r'#\s*={2,}.*(?:scene|act)', code, re.IGNORECASE))
+    if scene_count > 0:
+        return scene_count * 18  # ~18s per scene average
+
+    return 0
+
+
 def _inject_scene_cleanup(lines: list[str], fixes: list[str]) -> list[str]:
     """Auto-inject FadeOut between scene sections.
 
@@ -224,6 +265,25 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
     # Auto-inject FadeOut between scene sections
     # Detect scene boundaries (comments like "# === SCENE" or "# Scene N" or large gaps)
     new_lines = _inject_scene_cleanup(new_lines, fixes)
+
+    # Check if video duration roughly matches target
+    # If too short, add padding wait at the end
+    target_duration = _estimate_target_duration(code)
+    estimated_duration = _estimate_code_duration(new_lines)
+
+    if target_duration > 0 and estimated_duration < target_duration * 0.8:
+        # Video is more than 20% too short — add padding
+        deficit = target_duration - estimated_duration
+        # Find the last line in construct() and add a wait before it
+        for i in range(len(new_lines) - 1, -1, -1):
+            stripped = new_lines[i].strip()
+            if stripped and not stripped.startswith("#") and "self." in stripped:
+                # Insert padding wait before the last animation
+                padding = min(deficit, 15)  # Cap at 15s padding
+                indent = "        "
+                new_lines.insert(i, f"{indent}self.wait({padding:.1f})  # Padding to match voiceover duration")
+                fixes.append(f"Added {padding:.1f}s wait padding (video was {estimated_duration:.0f}s, target {target_duration:.0f}s)")
+                break
 
     # Rebuild code from modified new_lines
     code = "\n".join(new_lines)

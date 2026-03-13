@@ -66,9 +66,13 @@ def generate_manim_code(story: dict) -> str:
     """Generate Manim code from a story script."""
     target_duration = story.get("duration_target", 120)
 
+    # Build per-scene timing budget if audio durations are available
+    timing_instructions = _build_timing_instructions(story)
+
     user_prompt = (
         f"Generate a complete Manim scene (~{target_duration}s) for this story:\n\n"
         + json.dumps(story, indent=2)
+        + timing_instructions
         + "\n\nCRITICAL: Every scene must have visual elements (shapes, curves, diagrams) "
         "not just text. FadeOut everything between scenes. Use Transform() for equation "
         "progression. No MathTex — use Text() only. Return ONLY Python code."
@@ -76,6 +80,55 @@ def generate_manim_code(story: dict) -> str:
 
     response = call_llm(CODEGEN_SYSTEM_PROMPT, user_prompt)
     return extract_code(response)
+
+
+def _build_timing_instructions(story: dict) -> str:
+    """Build explicit per-scene timing budgets from audio durations.
+
+    This is critical for audio-video sync. Without it, the LLM generates
+    animations that run in 80s while the voiceover is 120s.
+    """
+    scenes = story.get("scenes", [])
+    has_audio = any(s.get("audio_duration") for s in scenes)
+
+    if not has_audio:
+        return ""
+
+    lines = [
+        "\n\n## TIMING BUDGET (CRITICAL — video must match voiceover duration)",
+        "Each scene has a voiceover narration. The animation MUST fill the same duration.",
+        "If a scene has audio_duration=15s, your animations + waits for that scene MUST total ~15s.",
+        "",
+        "PER-SCENE TIMING:",
+    ]
+
+    total = 0
+    for scene in scenes:
+        audio_dur = scene.get("audio_duration", 0)
+        if not audio_dur:
+            continue
+        name = scene.get("name", "scene")
+        total += audio_dur
+
+        # Calculate suggested breakdown
+        anim_time = min(audio_dur * 0.6, audio_dur - 3)  # 60% for animations
+        wait_time = audio_dur - anim_time  # Rest for waits/pauses
+
+        lines.append(
+            f"  Scene '{name}': MUST be {audio_dur:.0f}s total"
+            f" (suggest: {anim_time:.0f}s animations + {wait_time:.0f}s waits)"
+        )
+
+    lines.append(f"\n  TOTAL VIDEO MUST BE: ~{total:.0f}s")
+    lines.append("")
+    lines.append("HOW TO HIT THE TIMING:")
+    lines.append("- Add `self.wait(2)` or `self.wait(3)` between animations to fill time")
+    lines.append("- Use longer run_time values: run_time=3 instead of run_time=1")
+    lines.append("- Add a comment `# Scene total: ~Xs` at the end of each scene section")
+    lines.append("- If a scene feels too short, add more visual detail or longer pauses")
+    lines.append("- NEVER rush through content — the viewer needs time to absorb")
+
+    return "\n".join(lines)
 
 
 def fix_manim_code(code: str, error: str) -> str:

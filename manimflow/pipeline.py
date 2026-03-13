@@ -122,6 +122,12 @@ def generate_video(
     _log("\n--- Step 2/4: Generating Manim code ---")
 
     code = generate_manim_code(story)
+
+    # Inject target duration as comment so sanitizer can verify timing
+    if voiceover_result and voiceover_result.get("total_duration"):
+        target_dur = int(voiceover_result["total_duration"])
+        code = f"# TOTAL TARGET DURATION: {target_dur}s (must match voiceover)\n" + code
+
     code_path = os.path.join(output_dir, "scene.py")
     with open(code_path, "w") as f:
         f.write(code)
