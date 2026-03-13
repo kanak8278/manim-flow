@@ -330,7 +330,7 @@ def _parse_animation(line: str, line_num: int, elements: dict, on_screen: set) -
             add_names.extend(names)
 
     # Detect bulk removal (self.mobjects pattern = remove ALL)
-    if "self.mobjects" in line:
+    if "self.mobjects" in line and ("FadeOut" in line or "remove" in line):
         # This clears everything — return all on-screen elements as removed
         all_on_screen = list(on_screen)
         if all_on_screen:

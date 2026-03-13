@@ -181,8 +181,10 @@ def _inject_scene_cleanup(lines: list[str], fixes: list[str]) -> list[str]:
                 # Or there's no FadeOut at all.
                 # Inject a catch-all cleanup that clears everything.
                 indent = "        "  # 8 spaces (inside construct method)
-                # Always use the same catch-all pattern (analyzable + animated)
-                cleanup_line = f"{indent}self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)  # auto-cleanup"
+                # Use safe cleanup that doesn't crash on empty mobjects list
+                cleanup_line = (
+                    f"{indent}if self.mobjects: self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)  # auto-cleanup"
+                )
                 result.append(cleanup_line)
                 injected_count += 1
 
@@ -222,6 +224,14 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
                 line = re.sub(rf'\b{bad_pos}\b', good_pos, line)
                 if line != original:
                     fixes.append(f"Line {i+1}: Replaced '{bad_pos}' with '{good_pos}'")
+
+        # Fix unguarded self.mobjects cleanup (crashes when empty)
+        if "for m in self.mobjects]" in line and "if self.mobjects" not in line:
+            old_line = line
+            indent = line[:len(line) - len(line.lstrip())]
+            line = indent + "if self.mobjects: " + line.lstrip()
+            if line != old_line:
+                fixes.append(f"Line {i+1}: Guarded self.mobjects FadeOut (crashes when empty)")
 
         # Convert ALL MathTex to Text — avoids dvisvgm/LaTeX rendering issues entirely
         # Our highest-scoring videos (7-8.5/10) all used Text() only
