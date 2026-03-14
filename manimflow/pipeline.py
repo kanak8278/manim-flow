@@ -22,6 +22,7 @@ from .platform import PlatformConfig, get_platform_config, config_to_story_conte
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
 from .writers_room import run_writers_room
 from .design_system import generate_design_system, design_to_codegen_context, print_design_system
+from .screenplay import write_screenplay, screenplay_to_codegen_prompt, print_screenplay
 from .reviewers.design_reviewer import DesignReviewer
 from .reviewers.base import print_review
 
@@ -138,6 +139,27 @@ def generate_video(
 
     # Inject design context into story for code generation
     story["_design_context"] = design_to_codegen_context(design)
+
+    # === Step 1.7: Screenplay (detailed shot-by-shot visual script) ===
+    _log("\n--- Step 1.7: Writing screenplay ---")
+    sp = write_screenplay(story, topic)
+    if verbose:
+        print_screenplay(sp)
+
+    # The screenplay gives the code generator exact specifications
+    story["_screenplay_context"] = screenplay_to_codegen_prompt(sp)
+
+    # Save screenplay
+    sp_path = os.path.join(output_dir, "screenplay.json")
+    with open(sp_path, "w") as f:
+        json.dump({
+            "title": sp.title,
+            "shots": len(sp.shots),
+            "color_assignments": sp.color_assignments,
+            "visual_metaphors": sp.visual_metaphors,
+        }, f, indent=2)
+
+    _log(f"  Screenplay: {len(sp.shots)} shots, {len(sp.color_assignments)} colors")
 
     # === Step 2: Generate Manim Code ===
     _log("\n--- Step 2: Generating Manim code ---")

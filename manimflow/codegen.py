@@ -71,8 +71,9 @@ def generate_manim_code(story: dict) -> str:
     """Generate Manim code with voiceover sync from a story script."""
     target_duration = story.get("duration_target", 120)
 
-    # Include design system if available
+    # Include design system and screenplay if available
     design_context = story.pop("_design_context", "")
+    screenplay_context = story.pop("_screenplay_context", "")
 
     # Build narration hints
     scene_hints = []
@@ -90,7 +91,9 @@ def generate_manim_code(story: dict) -> str:
         + json.dumps(story, indent=2)
     )
 
-    if design_context:
+    if screenplay_context:
+        user_prompt += f"\n\n{screenplay_context}"
+    elif design_context:
         user_prompt += f"\n\n{design_context}"
 
     user_prompt += (
