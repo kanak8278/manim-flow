@@ -462,7 +462,11 @@ def _is_intentional_overlap(name1: str, elem1, name2: str, elem2,
     if kind1 == "text" and kind2 == "text":
         return False  # Two competing labels
 
-    # Rule 5: Two shapes of similar size at same position = NOT intentional
+    # Rule 5: Arrows/lines overlapping anything = intentional (they connect things)
+    if kind1 in ("arrow", "line") or kind2 in ("arrow", "line"):
+        return True  # Arrows and lines cross over things by design
+
+    # Rule 6: Two shapes of similar size at same position = NOT intentional
     if kind1 != "text" and kind2 != "text":
         if area1 > 0 and area2 > 0:
             size_ratio = min(area1, area2) / max(area1, area2)
