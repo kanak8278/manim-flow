@@ -17,7 +17,7 @@ _TECHNICAL_RULES = r"""
 1. Imports:
    from manim import *
    from manim_voiceover import VoiceoverScene
-   from manimflow.edge_tts_service import EdgeTTSService
+   from manimflow.core.edge_tts_service import EdgeTTSService
    import numpy as np
 
 2. Class: `GeneratedScene(VoiceoverScene)` with `def construct(self):`

@@ -230,7 +230,9 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
             old_line = line
             line = line.replace("GTTSService", "EdgeTTSService")
             line = line.replace("from manim_voiceover.services.gtts import EdgeTTSService",
-                              "from manimflow.edge_tts_service import EdgeTTSService")
+                              "from manimflow.core.edge_tts_service import EdgeTTSService")
+            line = line.replace("from manimflow.edge_tts_service import",
+                              "from manimflow.core.edge_tts_service import")
             if line != old_line:
                 fixes.append(f"Line {i+1}: Replaced GTTSService with EdgeTTSService (better voice)")
 
