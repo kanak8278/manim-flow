@@ -234,6 +234,16 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
             if line != old_line:
                 fixes.append(f"Line {i+1}: Replaced GTTSService with EdgeTTSService (better voice)")
 
+        # Fix wrong Manim API: .bottom_right → .get_corner(DR)
+        if ".bottom_right" in line or ".top_left" in line or ".top_right" in line or ".bottom_left" in line:
+            old_line = line
+            line = line.replace(".bottom_right", ".get_corner(DR)")
+            line = line.replace(".top_left", ".get_corner(UL)")
+            line = line.replace(".top_right", ".get_corner(UR)")
+            line = line.replace(".bottom_left", ".get_corner(DL)")
+            if line != old_line:
+                fixes.append(f"Line {i+1}: Fixed corner access (.bottom_right → .get_corner(DR))")
+
         # Fix unguarded self.mobjects cleanup (crashes when empty)
         if "for m in self.mobjects]" in line and "if self.mobjects" not in line:
             old_line = line

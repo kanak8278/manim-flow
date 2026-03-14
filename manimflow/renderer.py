@@ -54,6 +54,14 @@ def render_scene(
             error = _enhance_latex_error(error, output_dir)
         elif "NameError" in error:
             error = _enhance_name_error(error)
+        elif "no <bookmark mark=" in error.lower() or "bookmark" in error.lower():
+            error += (
+                "\n\nBOOKMARK FIX: A wait_until_bookmark() references a bookmark "
+                "that doesn't exist in the voiceover text. "
+                "Check that every wait_until_bookmark('X') has a matching "
+                "<bookmark mark='X'/> in the voiceover text string. "
+                "The bookmark names must match EXACTLY (case-sensitive)."
+            )
 
         return {
             "success": False,
