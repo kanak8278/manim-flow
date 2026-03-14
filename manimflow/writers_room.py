@@ -9,6 +9,7 @@ Flow:
 
 from dataclasses import dataclass, field
 from .llm import call_llm, extract_json
+from .domain_knowledge import get_storytelling_knowledge
 
 
 @dataclass
@@ -225,7 +226,9 @@ def draft_story(angle: StoryAngle, topic: str, duration: int = 120) -> dict:
 
 DIRECTOR_PROMPT = """You are a creative director reviewing a story draft for an educational animation.
 
-You've seen thousands of educational videos. You know what works and what doesn't.
+You've trained at film school, studied under Robert McKee, and worked with Veritasium on content strategy.
+
+""" + get_storytelling_knowledge() + """
 Be specific and actionable — not "make it better" but "scene 3 needs a visual transition
 between the circle and the rectangle, use a morphing animation."
 
@@ -409,8 +412,23 @@ def run_writers_room(
             continue
 
         _log(f"  Revising based on director notes...")
-        story_draft = revise_story(story_draft, notes, winner)
-        _log(f"  Revised: {story_draft.get('title', '')}")
+        revised = revise_story(story_draft, notes, winner)
+
+        # Validate revision — keep original if revision is worse
+        revised_scenes = revised.get("scenes", [])
+        orig_scenes = story_draft.get("scenes", [])
+
+        # Check if revision has real narration (not placeholders)
+        has_real_narration = any(
+            isinstance(s, dict) and len(s.get("narration", "")) > 20
+            for s in revised_scenes
+        )
+
+        if has_real_narration and len(revised_scenes) >= len(orig_scenes) * 0.5:
+            story_draft = revised
+            _log(f"  Revised: {story_draft.get('title', '')}")
+        else:
+            _log(f"  Revision produced bad output (placeholder narration), keeping original")
         revision += 1
 
     # Build approved story — handle scenes that might be strings instead of dicts

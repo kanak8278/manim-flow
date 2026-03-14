@@ -4,9 +4,10 @@ import json
 from .llm import call_llm, extract_code
 from .manim_reference import MANIM_API_REFERENCE
 from .transitions import get_transition_guide
+from .domain_knowledge import get_full_design_knowledge
 
-_RULES = r"""
-RULES (follow exactly — violations = broken video):
+_TECHNICAL_RULES = r"""
+## TECHNICAL RULES (violations = crash)
 
 1. Imports:
    from manim import *
@@ -15,115 +16,52 @@ RULES (follow exactly — violations = broken video):
    import numpy as np
 
 2. Class: `GeneratedScene(VoiceoverScene)` with `def construct(self):`
-3. First line in construct:
-   self.set_speech_service(EdgeTTSService(transcription_model="base"))
-4. Background: `self.camera.background_color = BLACK`
-5. NO MathTex. Use Text() for everything including math.
-6. rate_func: ONLY use smooth, linear, rush_into, rush_from, there_and_back
-7. ASCII only in Text() — no special chars (they render as grey boxes)
+3. First line: self.set_speech_service(EdgeTTSService(transcription_model="base"))
+4. Background: self.camera.background_color = BLACK
+5. NO MathTex — use Text() for everything including math
+6. rate_func: ONLY smooth, linear, rush_into, rush_from, there_and_back
+7. ASCII only in Text() — no special chars (grey boxes)
 
-## VOICEOVER SYNC (CRITICAL — this is how audio matches animation)
-Wrap each scene's animations in a `with self.voiceover()` block.
-Use <bookmark mark="X"/> tags to sync specific animations to specific words.
+## VOICEOVER SYNC
+Wrap each scene in `with self.voiceover(text=...) as tracker:`
+Use <bookmark mark="X"/> tags to sync animations to words.
+Always start with <bookmark mark="start"/> at the beginning.
+Use self.wait_until_bookmark("X") to wait for that word.
 
-PATTERN:
+## MANIM CODE PATTERNS
+
+Concept Card:
 ```python
-with self.voiceover(
-    text='Here is <bookmark mark="circle"/>a circle that <bookmark mark="grow"/>grows bigger.'
-) as tracker:
-    self.wait_until_bookmark("circle")
-    self.play(Create(circle), run_time=tracker.time_until_bookmark("grow"))
-    self.wait_until_bookmark("grow")
-    self.play(circle.animate.scale(2), run_time=2)
+def make_card(text, color, width=3, height=1.2):
+    rect = RoundedRectangle(width=width, height=height, corner_radius=0.2,
+                            color=color, fill_color=color, fill_opacity=0.15)
+    label = Text(text, font_size=24, color=WHITE).move_to(rect.get_center())
+    return VGroup(rect, label)
 ```
 
-RULES FOR VOICEOVER BLOCKS:
-- Each scene section gets ONE voiceover block with narration text
-- Put bookmarks BEFORE the word where the animation should trigger
-- Use tracker.duration for animations that should fill the whole narration
-- Use tracker.time_until_bookmark("X") for animations between bookmarks
-- Keep narration text CONCISE — 2-3 sentences per voiceover block
-
-CRITICAL: NEVER have black/empty screen while voice is talking!
-- ALWAYS put a <bookmark mark="start"/> at the VERY BEGINNING of the narration text
-- The first animation inside the block must trigger at bookmark "start"
-- This ensures a visual appears as soon as the voice starts speaking
-- Example: text='<bookmark mark="start"/>Watch as <bookmark mark="circle"/>the circle appears'
-  self.wait_until_bookmark("start")
-  self.play(Write(title), run_time=1)  # title appears with first word
-
-- FadeOut previous elements INSIDE the voiceover block, AFTER the new visual appears
-  (this avoids the black gap between scenes)
-
-EXAMPLE SCENE:
+Flow Diagram:
 ```python
-# === SCENE 1: Hook ===
-title = Text("Why Pi?", font_size=48, color=BLUE).move_to(UP * 2)
-circle = Circle(radius=1.5, color=GREEN).move_to(DOWN * 0.5)
-
-with self.voiceover(
-    text='<bookmark mark="title"/>Why does every circle hide <bookmark mark="circle"/>the same magical number?'
-) as tracker:
-    self.wait_until_bookmark("title")
-    self.play(Write(title), run_time=1.5)
-    self.wait_until_bookmark("circle")
-    self.play(Create(circle), run_time=tracker.duration - tracker.get_remaining())
-
-self.wait(0.5)
-self.play(FadeOut(title), FadeOut(circle), run_time=1)
+cards = [make_card(name, color) for name, color in items]
+group = VGroup(*cards).arrange(RIGHT, buff=1.0)
+arrows = [Arrow(cards[i].get_right(), cards[i+1].get_left(), buff=0.1)
+          for i in range(len(cards)-1)]
 ```
 
-## TEXT RULES
-- FadeOut ALL elements at end of each scene section
-- Keep ALL text within y=[-3, 3]
-- Minimum 1.2 units vertical gap between text
-- Long text (>30 chars): font_size 24 or break into lines
-- ASCII only — no emojis, bullets, special chars
-
-## VISUAL DESIGN (THE MOST IMPORTANT RULES)
-
-RULE 1: Every shape must MEAN something. No decorative shapes.
-  BAD: Circle(color=GREEN) next to Rectangle(color=RED) — random shapes with no meaning
-  GOOD: Rectangle labeled "District Court" with smaller rectangles labeled "Traffic", "Property" inside it
-  The viewer must know what each shape represents WITHOUT reading the code.
-
-RULE 2: Use LABELED DIAGRAMS, not abstract shapes.
-  For any non-math topic, the best visuals are:
-  - Labeled rectangles with text inside (like org charts, flowcharts)
-  - Arrows showing flow/hierarchy/progression
-  - Stacked/nested boxes showing containment/hierarchy
-  - Annotated diagrams with Brace() and labels
-  NOT random circles, triangles, and rectangles scattered on screen.
-
-RULE 3: Hierarchy = vertical position. More important = higher.
-  Supreme Court at UP*2, High Court at ORIGIN, District Court at DOWN*2.
-  NOT random placement.
-
-RULE 4: Use 3Blue1Brown visual patterns:
-  - Clean labeled boxes with clear text inside
-  - Arrows connecting related concepts
-  - Progressive reveal (show one thing, explain it, then add the next)
-  - Color = identity (same concept = same color throughout)
-  - White text on dark backgrounds for readability
-  - VGroup().arrange() for clean, aligned layouts
-
-RULE 5: For non-math topics (law, history, systems):
-  - Use rectangles as "cards" — each card is a concept with a label
-  - Use arrows for relationships between cards
-  - Use color to group related concepts
-  - Use size to show importance
-  - DON'T use circles/triangles to represent real-world objects
-  - DO use text-labeled rectangles that clearly state what they represent
-
-RULE 6: Transform() for progression, Indicate() for emphasis, end with dramatic reveal
+Hierarchy:
+```python
+parent = make_card("Parent", BLUE).move_to(UP * 2)
+children = VGroup(*[make_card(n, GREEN) for n in names]).arrange(RIGHT, buff=0.8).move_to(DOWN * 0.5)
+lines = [Line(parent.get_bottom(), c.get_top(), buff=0.1) for c in children]
+```
 """
 
 CODEGEN_SYSTEM_PROMPT = (
-    "You are an expert Manim animator creating 3Blue1Brown-style videos with synchronized voiceover. "
-    "Your code uses VoiceoverScene with bookmark-synced narration. "
-    "Every scene has visual elements AND narration that plays in sync.\n\n"
+    "You are an expert educational animator. You create 3Blue1Brown-style videos.\n"
+    "Every shape must MEAN something. No decorative geometry.\n"
+    "Use labeled concept cards, arrows, and diagrams — not random shapes.\n\n"
     + MANIM_API_REFERENCE
-    + _RULES
+    + "\n" + _TECHNICAL_RULES
+    + "\n" + get_full_design_knowledge()
     + "\n" + get_transition_guide()
     + "\nReturn ONLY Python code. No markdown.\n"
 )
@@ -133,19 +71,22 @@ def generate_manim_code(story: dict) -> str:
     """Generate Manim code with voiceover sync from a story script."""
     target_duration = story.get("duration_target", 120)
 
-    # Build narration hints per scene
-    scene_hints = []
-    for scene in story.get("scenes", []):
-        name = scene.get("name", "scene")
-        narration = scene.get("narration", "")
-        visual = scene.get("visual_description", "")[:80]
-        scene_hints.append(f"  Scene '{name}': narration=\"{narration[:100]}\" visual=\"{visual}\"")
-
     # Include design system if available
     design_context = story.pop("_design_context", "")
 
+    # Build narration hints
+    scene_hints = []
+    for scene in story.get("scenes", []):
+        if isinstance(scene, dict):
+            name = scene.get("name", "scene")
+            narration = scene.get("narration", "")
+            visual = scene.get("visual", scene.get("visual_description", ""))
+            if isinstance(visual, str):
+                visual = visual[:80]
+            scene_hints.append(f"  Scene '{name}': narration=\"{narration[:100]}\" visual=\"{visual}\"")
+
     user_prompt = (
-        f"Generate a complete VoiceoverScene (~{target_duration}s) for this story:\n\n"
+        f"Generate a VoiceoverScene (~{target_duration}s) for this story:\n\n"
         + json.dumps(story, indent=2)
     )
 
@@ -153,15 +94,15 @@ def generate_manim_code(story: dict) -> str:
         user_prompt += f"\n\n{design_context}"
 
     user_prompt += (
-        "\n\nSCENE NARRATION TO USE:\n" + "\n".join(scene_hints)
-        + "\n\nCRITICAL:"
+        "\n\nSCENE NARRATION:\n" + "\n".join(scene_hints)
+        + "\n\nCRITICAL REMINDERS:"
         "\n- Use VoiceoverScene with EdgeTTSService(transcription_model='base')"
-        "\n- Wrap each scene in `with self.voiceover(text=...)` with bookmark tags"
-        "\n- Narration text comes from the story's 'narration' field for each scene"
-        "\n- Add <bookmark mark='X'/> tags at key animation trigger points"
-        "\n- FadeOut everything between voiceover blocks"
-        "\n- Every scene must have visual elements, not just text"
-        "\n- ASCII only in Text() — no special characters"
+        "\n- Every shape must be a labeled concept card or diagram element"
+        "\n- Use make_card() pattern for entities, Arrow() for relationships"
+        "\n- Maximum 4 elements on screen at once"
+        "\n- FadeOut everything between scenes"
+        "\n- Progressive disclosure: one element at a time"
+        "\n- ASCII only, no MathTex"
         "\n\nReturn ONLY Python code."
     )
 
@@ -170,16 +111,8 @@ def generate_manim_code(story: dict) -> str:
 
 
 def fix_manim_code(code: str, error: str) -> str:
-    """Fix broken Manim code based on error output."""
-    system = (
-        CODEGEN_SYSTEM_PROMPT
-        + "\n\nFix the broken code. Return ONLY the complete fixed Python file."
-    )
-
-    user_prompt = (
-        "Fix this code:\n\n```python\n" + code + "\n```\n\nERROR:\n" + error
-        + "\n\nReturn ONLY the complete fixed code."
-    )
-
+    """Fix broken Manim code."""
+    system = CODEGEN_SYSTEM_PROMPT + "\n\nFix the broken code. Return ONLY complete Python."
+    user_prompt = "Fix:\n```python\n" + code + "\n```\nERROR:\n" + error + "\n\nReturn ONLY code."
     response = call_llm(system, user_prompt)
     return extract_code(response)

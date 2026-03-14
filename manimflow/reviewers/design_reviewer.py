@@ -10,15 +10,22 @@ Encodes knowledge from:
 
 import json
 from .base import BaseReviewer, ReviewResult
+from ..domain_knowledge import get_full_design_knowledge
 
 
 class DesignReviewer(BaseReviewer):
     stage_name = "Visual Design"
 
-    domain_knowledge = """
-You are a visual design expert reviewing animation designs for educational videos.
-You have studied at a top design school and worked in motion graphics for 10 years.
-You know what works in 3Blue1Brown-style content.
+    @property
+    def domain_knowledge(self):
+        return (
+            "You are a visual design expert reviewing animation designs for educational videos.\n"
+            "You have studied at a top design school and worked in motion graphics for 10 years.\n"
+            "You know what works in 3Blue1Brown-style content.\n\n"
+            + get_full_design_knowledge()
+        )
+
+    _extra_knowledge = """
 
 ## GESTALT PRINCIPLES (how humans perceive visual groups)
 1. PROXIMITY: Elements close together are perceived as related. Elements far apart are separate.
