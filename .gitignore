@@ -56,3 +56,5 @@ output/
 .env
 benchmark_output/
 videos/
+manimflow/knowledge/scenes/
+manimflow/knowledge/INSTRUCTIONS.md

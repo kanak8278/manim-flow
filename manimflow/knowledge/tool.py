@@ -161,10 +161,13 @@ def get_knowledge_system_context() -> str:
 You have a `search_knowledge` tool with {stats['total_docs']} real Manim video examples
 and {stats['total_patterns']} tested code patterns from production channels.
 
-Search BEFORE writing Manim code. Look for:
+Search ONCE before writing code. One well-crafted query is better than multiple vague ones.
+Look for:
 - How similar visualizations were built
 - Working code patterns for the technique you need
 - Layout/composition that actually renders correctly
+
+After searching, write your response. Do NOT search again unless the first search returned nothing useful.
 
 ### Vocabulary for structured filters
 

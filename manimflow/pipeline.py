@@ -20,11 +20,12 @@ from .timing import extract_scene_timings, rewrite_narration_for_timing, get_vid
 from .code_editor import surgical_fix
 from .platform import PlatformConfig, get_platform_config, config_to_story_context
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
-from .writers_room import run_writers_room
+from .writers_room import run_writers_room, validate_story
 from .design_system import generate_design_system, design_to_codegen_context, print_design_system
 from .screenplay import write_screenplay, screenplay_to_codegen_prompt, print_screenplay
 from .reviewers.design_reviewer import DesignReviewer
 from .reviewers.base import print_review
+from . import tracing
 
 
 async def generate_video(
@@ -50,6 +51,13 @@ async def generate_video(
     os.makedirs(output_dir, exist_ok=True)
     _log = print if verbose else lambda *a, **k: None
 
+    # Start Langfuse trace for the full pipeline run
+    trace_ctx = tracing.trace(
+        "generate_video",
+        metadata={"topic": topic, "duration": duration, "quality": quality},
+    )
+    _trace = trace_ctx.__enter__()
+
     # === Step 1: Generate Story ===
     _log("\n======================================")
     _log("  ManimFlow Video Generation Pipeline")
@@ -68,13 +76,21 @@ async def generate_video(
     # === Step 1: Writers Room (explore angles → draft → director review → revise) ===
     _log("\n--- Step 1: Writers Room ---")
 
-    approved = await run_writers_room(
-        topic=topic,
-        audience="general",
-        duration=duration,
-        max_revisions=2,
-        verbose=verbose,
-    )
+    with tracing.span("writers_room", metadata={"topic": topic}) as wr_span:
+        approved = await run_writers_room(
+            topic=topic,
+            audience="general",
+            duration=duration,
+            max_revisions=2,
+            verbose=verbose,
+        )
+        wr_span.update(output={
+            "title": approved.title,
+            "angle": approved.angle.title,
+            "scenes": len(approved.scenes),
+            "revisions": approved.revision_count,
+            "director_score": approved.director_notes.score,
+        })
 
     # Convert approved story to the format the rest of the pipeline expects
     story = {
@@ -89,23 +105,43 @@ async def generate_video(
         },
     }
 
+    # Preserve color_assignments from the story draft if present
+    # (the new writers room produces these)
+    first_scene = approved.scenes[0] if approved.scenes else {}
+    if isinstance(first_scene, dict):
+        # Color assignments may be at story level
+        pass
+    # Check if the story draft had color_assignments
+    for scene in approved.scenes:
+        if isinstance(scene, dict) and scene.get("color_assignments"):
+            story["color_assignments"] = scene["color_assignments"]
+            break
+
     story_path = os.path.join(output_dir, "story.json")
     with open(story_path, "w") as f:
         json.dump(story, f, indent=2)
 
+    # Validate story completeness
+    validation = validate_story(story)
     _log(f"\n  Approved story: \"{approved.title}\"")
     _log(f"  Angle: {approved.angle.title}")
     _log(f"  Director score: {approved.director_notes.score}/10")
     _log(f"  Scenes: {len(approved.scenes)}")
     _log(f"  Revisions: {approved.revision_count}")
+    _log(f"  Elements: {validation.get('element_count', '?')}, Duration: ~{validation.get('total_duration', '?')}s")
+    if validation.get("issues"):
+        _log(f"  Story validation issues: {len(validation['issues'])}")
+        for issue in validation["issues"][:3]:
+            _log(f"    [!] {issue}")
 
     # === Step 1.5: Design System ===
     _log("\n--- Step 1.5: Generating design system ---")
-    design = await generate_design_system(
-        story,
-        angle_title=approved.angle.title,
-        angle_mood=approved.angle.emotional_arc,
-    )
+    with tracing.span("design_system") as ds_span:
+        design = await generate_design_system(
+            story,
+            angle_title=approved.angle.title,
+            angle_mood=approved.angle.emotional_arc,
+        )
     if verbose:
         print_design_system(design)
 
@@ -142,21 +178,36 @@ async def generate_video(
 
     # === Step 1.7: Screenplay (detailed shot-by-shot visual script) ===
     _log("\n--- Step 1.7: Writing screenplay ---")
-    sp = await write_screenplay(story, topic)
+    with tracing.span("screenplay") as sp_span:
+        sp = await write_screenplay(story, topic)
+        sp_span.update(output={"shots": len(sp.shots), "colors": len(sp.color_assignments)})
     if verbose:
         print_screenplay(sp)
 
     # The screenplay gives the code generator exact specifications
     story["_screenplay_context"] = screenplay_to_codegen_prompt(sp)
 
-    # Save screenplay
+    # Save screenplay — FULL shot data, not just summary
     sp_path = os.path.join(output_dir, "screenplay.json")
     with open(sp_path, "w") as f:
         json.dump({
             "title": sp.title,
-            "shots": len(sp.shots),
             "color_assignments": sp.color_assignments,
             "visual_metaphors": sp.visual_metaphors,
+            "shots": [
+                {
+                    "id": shot.id,
+                    "duration": shot.duration,
+                    "narration": shot.narration,
+                    "screen_elements": shot.screen_elements,
+                    "animations": shot.animations,
+                    "camera": shot.camera,
+                    "teaching_point": shot.teaching_point,
+                    "emotional_beat": shot.emotional_beat,
+                    "transition_to_next": shot.transition_to_next,
+                }
+                for shot in sp.shots
+            ],
         }, f, indent=2)
 
     _log(f"  Screenplay: {len(sp.shots)} shots, {len(sp.color_assignments)} colors")
@@ -164,7 +215,9 @@ async def generate_video(
     # === Step 2: Generate Manim Code ===
     _log("\n--- Step 2: Generating Manim code ---")
 
-    code = await generate_manim_code(story)
+    with tracing.span("codegen") as cg_span:
+        code = await generate_manim_code(story)
+        cg_span.update(output={"lines": len(code.splitlines())})
     code_path = os.path.join(output_dir, "scene.py")
     with open(code_path, "w") as f:
         f.write(code)
@@ -219,10 +272,15 @@ async def generate_video(
     # === Step 3: Render with Auto-Fix Loop ===
     _log("\n--- Step 3/4: Rendering video ---")
 
-    render_result = await _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+    with tracing.span("render") as render_span:
+        render_result = await _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+        render_span.update(output={
+            "success": render_result["success"],
+            "attempts": render_result.get("attempts", 0),
+        })
 
     if not render_result["success"]:
-        return {
+        result = {
             "success": False,
             "error": render_result["error"],
             "story": story,
@@ -231,6 +289,10 @@ async def generate_video(
             "story_path": story_path,
             "code_path": code_path,
         }
+        _trace.update(output={"success": False, "error": render_result["error"][:200]})
+        trace_ctx.__exit__(None, None, None)
+        tracing.flush()
+        return result
 
     code = render_result["code"]
     video_path = render_result["video_path"]
@@ -409,7 +471,7 @@ async def generate_video(
 
     _log(f"\n  Video ready: {final_video_path}")
 
-    return {
+    result = {
         "success": True,
         "video_path": final_video_path,
         "story": story,
@@ -418,6 +480,21 @@ async def generate_video(
         "story_path": story_path,
         "code_path": code_path,
     }
+
+    # Close Langfuse trace
+    overall_score = evaluation.get("overall_score", 0)
+    _trace.update(output={
+        "success": True,
+        "quality_score": overall_score,
+        "video_path": final_video_path,
+    })
+    # Score the trace for Langfuse dashboards
+    if tracing.is_enabled() and isinstance(overall_score, (int, float)) and overall_score > 0:
+        _trace.score(name="quality", value=overall_score / 10.0)
+    trace_ctx.__exit__(None, None, None)
+    tracing.flush()
+
+    return result
 
 
 async def _render_with_fixes(

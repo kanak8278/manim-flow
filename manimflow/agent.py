@@ -33,6 +33,8 @@ from tenacity import (
     retry_if_exception_type,
 )
 
+from . import tracing
+
 logger = logging.getLogger(__name__)
 
 # Default model — override via MODEL env var or constructor
@@ -284,6 +286,20 @@ class Agent:
 
         self.usage.add(usage_dict)
 
+        # Log to Langfuse
+        tracing.generation(
+            name=f"agent_call_{self.usage.api_calls}",
+            model=self.model,
+            input=self.messages[-1] if self.messages else {},
+            output=Agent.extract_text(response.content)[:500],
+            usage=usage_dict,
+            metadata={
+                "stop_reason": response.stop_reason,
+                "has_tools": bool(self.tools),
+                "tool_count": len(self.tools),
+            },
+        )
+
         return response.content, response.stop_reason, usage_dict
 
     @retry(
@@ -435,13 +451,38 @@ class Agent:
                 if hasattr(block, "type") and block.type == "tool_use":
                     tool_name = block.name
                     tool_input = block.input
+
+                    # Build concise summary of tool call
+                    query = tool_input.get("query", "")
+                    filters = {k: v for k, v in tool_input.items()
+                               if k not in ("query", "limit") and v}
+                    filter_str = f" filters={filters}" if filters else ""
+                    print(f"    [TOOL] {tool_name}(\"{query}\"{filter_str})")
                     logger.info(f"Tool call: {tool_name}({tool_input})")
 
                     try:
                         result_text = tool_executor(tool_name, tool_input)
+                        # Show result summary
+                        result_lines = result_text.strip().split("\n")
+                        doc_count = sum(1 for l in result_lines if l.startswith("## "))
+                        if doc_count:
+                            print(f"    [RESULT] {doc_count} docs, {len(result_text)} chars")
+                        elif len(result_text) > 100:
+                            print(f"    [RESULT] {len(result_text)} chars")
                     except Exception as e:
                         logger.error(f"Tool execution error: {e}")
                         result_text = f"Error executing {tool_name}: {e}"
+                        print(f"    [ERROR] {e}")
+
+                    # Log tool call to Langfuse
+                    parent = tracing.current_span()
+                    if parent is not None:
+                        parent.span(
+                            name=f"tool_{tool_name}",
+                            input=tool_input,
+                            output=result_text[:500] if len(result_text) > 500 else result_text,
+                            metadata={"round": round_num},
+                        )
 
                     tool_results.append({
                         "type": "tool_result",
@@ -456,8 +497,8 @@ class Agent:
                 logger.warning("stop_reason=tool_use but no tool_use blocks")
                 return self.extract_text(content)
 
-        # Max rounds — return whatever we have
-        logger.warning(f"Hit max_tool_rounds={max_tool_rounds}")
+        # Max rounds — force a final response without tools
+        print(f"    [TOOL] Hit max_tool_rounds={max_tool_rounds}, forcing final response")
         content, _, _ = await self.call()
         return self.extract_text(content)
 
