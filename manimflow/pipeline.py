@@ -22,6 +22,8 @@ from .platform import PlatformConfig, get_platform_config, config_to_story_conte
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
 from .writers_room import run_writers_room
 from .design_system import generate_design_system, design_to_codegen_context, print_design_system
+from .reviewers.design_reviewer import DesignReviewer
+from .reviewers.base import print_review
 
 
 def generate_video(
@@ -111,6 +113,28 @@ def generate_video(
     design_path = os.path.join(output_dir, "design_system.json")
     with open(design_path, "w") as f:
         _json.dump(design.to_dict(), f, indent=2)
+
+    # Review design — regenerate if below threshold
+    design_reviewer = DesignReviewer()
+    design_review = design_reviewer.review(
+        artifact=design.to_dict(),
+        context={"topic": topic, "title": story.get("title", "")},
+    )
+    if verbose:
+        print_review(design_review)
+
+    if design_review.score < 5 and design_review.fixes:
+        _log(f"  Design score {design_review.score}/10 — regenerating with feedback...")
+        # Feed reviewer fixes back to design generator
+        feedback = "\n".join(design_review.fixes[:5])
+        story["_design_feedback"] = feedback
+        design = generate_design_system(
+            story,
+            angle_title=approved.angle.title,
+            angle_mood=approved.angle.emotional_arc + f"\n\nFix these design issues:\n{feedback}",
+        )
+        if verbose:
+            print_design_system(design)
 
     # Inject design context into story for code generation
     story["_design_context"] = design_to_codegen_context(design)
