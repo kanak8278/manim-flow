@@ -1,7 +1,6 @@
 # ManimFlow
 
-ManimFlow generates educational math/physics explainer videos from a text prompt — you type a topic like "Why is 0.999... = 1?" and it produces a complete animated video with
-voiceover, background music, and a thumbnail, using Manim (3Blue1Brown's animation engine) and Claude for story/code generation.
+ManimFlow generates educational explainer videos from a text prompt — you type a topic and it produces a complete animated video with voiceover, background music, and a thumbnail, using Manim (3Blue1Brown's animation engine) and Claude for story/code generation.
 
 ```bash
 uv run manimflow "Why is 0.999... exactly equal to 1?"
@@ -9,32 +8,29 @@ uv run manimflow "Why is 0.999... exactly equal to 1?"
 
 ## What it does
 
-ManimFlow takes a math/physics question and produces a complete video:
+ManimFlow takes any educational topic and produces a complete video through a multi-stage pipeline:
 
-1. **Story** -- LLM generates a narrative script with hook, build, climax, resolve
-2. **Narrative review** -- Scores the story (hook quality, pacing, visual plan) and improves it if weak
-3. **Voiceover** -- Text-to-speech with timing sync (edge-tts, 5 voice options)
-4. **Animation code** -- Generates Manim Python code with shapes, curves, diagrams
-5. **Quality checks** -- Spatial overlap detection, code sanitization, frame-by-frame vision analysis
-6. **Rendering** -- Auto-fix loop retries up to 5 times on failure
-7. **Music** -- Background ambient pad with auto-ducking under narration
-8. **Thumbnail** -- Extracts the most visually striking frame
-
-Output: `{title}_FINAL.mp4` with voiceover + background music.
+1. **Writers Room** — 3 parallel AI writers create story drafts, a reviewer picks the best and cross-pollinates ideas, then the writer revises based on feedback
+2. **Design System** — A visual designer reads the story and adds every visual specification: colors, typography, positions, animation types, transitions
+3. **Screenplay** — Converts the visual story into structured shot specifications with semantic positioning, bookmark sync, and knowledge base search for real Manim patterns
+4. **Code Generation** — Translates the screenplay into executable Manim Python code
+5. **Layout Inspection** — Scene inspector executes the code without rendering to extract exact geometry, then the layout checker compares against screenplay intent
+6. **Rendering** — Manim renders the animation, with auto-fix loop on failure
+7. **Quality Evaluation** — Vision + code analysis scoring with surgical fix loop
+8. **Audio + Thumbnail** — Background music mixing and thumbnail generation
 
 ## Install
 
 ```bash
 git clone https://github.com/kanak8278/manim-flow.git
 cd manim-flow
-
-# Install dependencies
 uv sync
 
-# Set your Anthropic API key
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+# Optional: Langfuse observability
+echo "LANGFUSE_PUBLIC_KEY=pk-lf-..." >> .env
+echo "LANGFUSE_SECRET_KEY=sk-lf-..." >> .env
 
-# Run (prefix all commands with `uv run`)
 export $(cat .env | xargs)
 uv run manimflow "Why is 0.999... equal to 1?"
 ```
@@ -44,167 +40,161 @@ uv run manimflow "Why is 0.999... equal to 1?"
 ```bash
 # macOS
 brew install ffmpeg
-
-# LaTeX (for MathTex support -- optional, Text() works without it)
-# If you have TeX Live installed, ManimFlow auto-configures dvisvgm
 ```
 
 ## Usage
 
-### Generate a video
-
 ```bash
-# Basic -- 2-minute explainer with voiceover
+# Basic — 2-minute explainer
 uv run manimflow "Why is the area of a circle pi*r^2?"
 
-# Specify duration
-manimflow "The Monty Hall Problem" --duration 120
-
-# Short-form (60s TikTok/Reel style)
-manimflow "Why can't you divide by zero?" --duration 60
+# Short-form (60s)
+uv run manimflow "Why can't you divide by zero?" --duration 60
 
 # Deep dive (5 minutes)
-manimflow "How does GPS use relativity?" --duration 300
-
-# Pick a content category
-manimflow "0.999... = 1" --category mind_blown
-
-# Change voice
-manimflow "E = mc^2 explained" --voice female_uk
-
-# No voiceover
-manimflow "The butterfly curve" --voice none
+uv run manimflow "How does GPS use relativity?" --duration 300
 
 # High quality render
-manimflow "Euler's identity" --quality h
-```
+uv run manimflow "Euler's identity" --quality h
 
-### Browse topics and categories
-
-```bash
-# List suggested topics ranked by engagement potential
-manimflow topics
-
-# Filter by category
-manimflow topics --category mind_blown
-
-# List all content categories
-manimflow categories
+# No voiceover
+uv run manimflow "The butterfly curve" --voice none
 ```
 
 ### Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--duration`, `-d` | 120 | Target video length in seconds (60/120/300/480) |
+| `--duration`, `-d` | 120 | Target video length in seconds |
 | `--quality`, `-q` | l | Render quality: l=480p, m=720p, h=1080p, k=4K |
-| `--category`, `-c` | auto | Content category (auto-detected from topic) |
-| `--voice`, `-v` | male_us | Voiceover: male_us, female_us, male_uk, female_uk, male_au, none |
-| `--output`, `-o` | output | Output directory |
-| `--max-fix-attempts` | 5 | Max auto-fix attempts per render |
+| `--category`, `-c` | auto | Content category (auto-detected) |
+| `--voice`, `-v` | male_us | Voiceover voice (or `none`) |
+| `--output`, `-o` | output/ | Output directory |
+| `--max-fix-attempts` | 5 | Max render fix attempts |
 | `--max-quality-loops` | 2 | Max quality improvement rounds |
-| `--preview`, `-p` | off | Open video after rendering |
-
-### Content categories
-
-| Category | Best for | Duration |
-|----------|----------|----------|
-| `mind_blown` | Paradoxes, surprising results (0.999=1, Monty Hall) | 120s |
-| `proof` | Visual proofs and derivations (Pythagorean, circle area) | 180s |
-| `formula` | Famous equations decoded (E=mc^2, F=ma) | 120s |
-| `how_it_works` | Mechanism explainers (GPS, Fourier, encryption) | 180s |
-| `what_if` | Thought experiments (What if pi=3?) | 120s |
-| `visual_beauty` | Mathematical art (butterfly curve, Mandelbrot) | 90s |
-| `quick_fact` | 60-second explainers (divide by zero, golden ratio) | 60s |
 
 ## Architecture
 
 ```
-topic
-  |
-  v
-Story Generation (LLM + engagement patterns + category hints)
-  |
-  v
-Narrative Review (score hook/arc/pacing, improve if <6/10)
-  |
-  v
-Voiceover Pre-gen (edge-tts, get per-scene timing)
-  |
-  v
-Code Generation (Manim + API reference + transition vocabulary)
-  |
-  v
-Code Sanitizer (fix rate_funcs, MathTex, non-ASCII, Cross())
-  |
-  v
-Spatial Analysis (text overlap, off-screen, text accumulation)
-  |
-  v
-Render Loop (up to 5 auto-fix attempts)
-  |
-  v
-Vision Evaluation (frame extraction + Claude vision API)
-  |
-  v
-Quality Loop (surgical fixes + re-render, vision veto if frames <5/10)
-  |
-  v
-Audio Production (background music + voiceover + ducking)
-  |
-  v
-Thumbnail Generation (best frame + title overlay)
-  |
-  v
-{title}_FINAL.mp4
+Topic (text)
+    │
+    ▼
+┌─────────────────────────────────┐
+│  PREPRODUCTION                  │
+│                                 │
+│  Writers Room ─── 3 parallel    │
+│  writers + reviewer + revise    │
+│  Output: free-form story prose  │
+│                                 │
+│  Design System ─── visual       │
+│  specs added to prose           │
+│  Output: design rules +         │
+│          visual story            │
+│                                 │
+│  Screenplay ─── structured      │
+│  shots with knowledge search    │
+│  + validation fix loop          │
+│  Output: shots JSON with        │
+│  semantic positions             │
+└────────────┬────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────┐
+│  PRODUCTION                     │
+│                                 │
+│  Codegen → Manim Python code    │
+│  Sanitizer → fix LLM mistakes   │
+│  Scene Inspector → exact        │
+│    geometry without rendering    │
+│  Layout Checker → compare       │
+│    screenplay intent vs code    │
+│  Render Loop → auto-fix on fail │
+└────────────┬────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────┐
+│  POSTPRODUCTION                 │
+│                                 │
+│  Quality Eval (vision + code)   │
+│  Background Music               │
+│  Thumbnail Generation           │
+└────────────┬────────────────────┘
+             │
+             ▼
+        {title}_FINAL.mp4
 ```
 
-### Modules (22 files)
+## Project Structure
 
-| Module | Purpose |
-|--------|---------|
-| `pipeline.py` | Main orchestrator |
-| `story.py` | LLM story generation with duration presets |
-| `narrative_reviewer.py` | Pre-code story quality gate |
-| `codegen.py` | Manim code generation |
-| `code_sanitizer.py` | Auto-fix common LLM mistakes |
-| `code_editor.py` | Surgical targeted edits |
-| `spatial_analyzer.py` | Pre-render layout analysis |
-| `evaluator.py` | Post-render quality scoring (code + vision) |
-| `renderer.py` | Manim rendering with auto-fix |
-| `voiceover.py` | Text-to-speech (edge-tts) |
-| `music.py` | Background music generation + ducking |
-| `thumbnail.py` | Best-frame thumbnail extraction |
-| `categories.py` | 7 content categories |
-| `engagement.py` | Research-backed storytelling structures |
-| `transitions.py` | 10 semantic transition types |
-| `topics.py` | 30+ curated topics with scoring |
-| `platform.py` | Platform presets (YouTube, TikTok, Reels) |
-| `project.py` | Project model + content types |
-| `editor.py` | Natural language video editing |
-| `manim_reference.py` | Full Manim API reference for codegen |
-| `llm.py` | Unified LLM backend (API + CLI + vision) |
-| `cli.py` | CLI entry point |
+```
+manimflow/
+├── cli.py                  CLI entry point
+├── pipeline.py             Main orchestrator
+│
+├── core/                   Infrastructure
+│   ├── agent.py            LLM wrapper (retry, caching, thinking, tools)
+│   ├── tracing.py          Langfuse v4 observability (@observe)
+│   └── edge_tts_service.py Text-to-speech service
+│
+├── preproduction/          Story → Design → Screenplay
+│   ├── writers_room.py     Parallel writers + reviewer + revise
+│   ├── design_system.py    Visual specs in prose
+│   ├── screenplay.py       Structured shots + validation loop
+│   └── screenplay_validator.py  Structural checks
+│
+├── production/             Code → Inspect → Render
+│   ├── codegen.py          Manim code generation
+│   ├── code_sanitizer.py   Fix common LLM mistakes
+│   ├── code_editor.py      Surgical targeted edits
+│   ├── renderer.py         Manim rendering + auto-fix
+│   ├── scene_inspector.py  Extract geometry without rendering
+│   ├── layout_checker.py   Screenplay intent vs code geometry
+│   ├── spatial_analyzer.py Pre-render layout analysis
+│   └── wireframe.py        Static PNG renderer
+│
+├── postproduction/         Eval → Audio → Thumbnail
+│   ├── evaluator.py        Quality scoring (vision + code)
+│   ├── voiceover.py        TTS utilities
+│   ├── music.py            Background music
+│   ├── thumbnail.py        Thumbnail extraction
+│   └── timing.py           Duration utilities
+│
+├── knowledge/              Knowledge base
+│   ├── tool.py             Search tool for LLM agents
+│   ├── search.py           BM25 multi-field search engine
+│   └── vocabulary.py       343-term controlled vocabulary
+│
+├── prompts/                All prompt templates
+│   ├── writers_room.py
+│   ├── design_system.py
+│   └── screenplay.py
+│
+├── reference/              Static reference data
+│   ├── domain_knowledge.py Layout, color, animation rules
+│   ├── manim_reference.py  Manim API reference
+│   ├── categories.py       Content categories
+│   ├── transitions.py      Transition types
+│   ├── platform.py         Platform presets
+│   └── topics.py           Suggested topics
+│
+└── reviewers/              Review systems
+    ├── base.py
+    └── design_reviewer.py
+```
 
-## Quality scores
+## Knowledge Base
 
-Average quality across tested topics: ~7.5-8.5/10
+ManimFlow includes a knowledge base of **140 real Manim scene documents** with **436 tested code patterns** from 14 production video projects. The screenplay agent searches this during generation to find real examples of how specific visual techniques were implemented.
 
-| Topic | Score |
-|-------|-------|
-| Birthday Paradox | 8.8 |
-| Euler's Formula | 8.5 |
-| Monty Hall Problem | 8.4 |
-| 0.999... = 1 | 8.1 |
-| GPS + Relativity | 8.3 |
-| What if pi = 3? | 7.8 |
-| Derivatives | 7.6 |
-| Gauss Sum (1+2+...+n) | 7.3 |
+The search uses BM25 multi-field ranking with a **343-term controlled vocabulary** across domains, elements, animations, layouts, techniques, and visual purpose.
+
+## Observability
+
+ManimFlow integrates with [Langfuse](https://langfuse.com) for tracing. Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in your `.env` to see the full call tree: every LLM call, tool search, and pipeline stage with timing and token usage.
 
 ## Requirements
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) package manager
-- ffmpeg (for audio/video processing)
+- ffmpeg
 - Anthropic API key (Claude Sonnet)
-- Optional: TeX Live (for MathTex rendering)

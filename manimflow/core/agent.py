@@ -432,7 +432,7 @@ class Agent:
             Final text response from the LLM.
         """
         if tool_executor is None:
-            from .knowledge.tool import execute_tool
+            from ..knowledge.tool import execute_tool
             tool_executor = execute_tool
 
         for round_num in range(max_tool_rounds):
