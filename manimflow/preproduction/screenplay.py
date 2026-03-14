@@ -21,6 +21,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from ..agent import Agent, extract_json
+from .. import tracing
 from ..knowledge.tool import TOOLS, get_knowledge_context_screenplay
 from ..prompts.screenplay import SCREENPLAY_SYSTEM
 from .screenplay_validator import validate_screenplay as _validate, StructuralIssue
@@ -105,6 +106,7 @@ def _format_issues_for_llm(issues: list[StructuralIssue]) -> str:
     return "\n".join(lines)
 
 
+@tracing.observe()
 async def write_screenplay(
     title: str,
     visual_story: str,

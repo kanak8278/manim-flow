@@ -259,6 +259,7 @@ class Agent:
 
     # ── API call with retry ────────────────────────────────────
 
+    @tracing.observe(as_type="generation")
     async def call(self) -> tuple[list, str, dict]:
         """
         Make one LLM call with current messages.
@@ -287,16 +288,13 @@ class Agent:
         self.usage.add(usage_dict)
 
         # Log to Langfuse
-        tracing.generation(
-            name=f"agent_call_{self.usage.api_calls}",
+        tracing.update_generation(
             model=self.model,
-            input=self.messages[-1] if self.messages else {},
-            output=Agent.extract_text(response.content)[:500],
             usage=usage_dict,
             metadata={
                 "stop_reason": response.stop_reason,
                 "has_tools": bool(self.tools),
-                "tool_count": len(self.tools),
+                "call_number": self.usage.api_calls,
             },
         )
 
@@ -414,6 +412,7 @@ class Agent:
 
     # ── Agentic loop ───────────────────────────────────────────
 
+    @tracing.observe()
     async def run(
         self,
         tool_executor=None,

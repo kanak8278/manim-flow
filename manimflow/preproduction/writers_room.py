@@ -17,6 +17,7 @@ import asyncio
 import re
 from dataclasses import dataclass
 from ..agent import Agent
+from .. import tracing
 from ..prompts.writers_room import (
     WRITER_PERSONAS,
     STORY_WRITER_SYSTEM,
@@ -66,6 +67,7 @@ def _extract_selected_story(response: str) -> str:
 
 # ─── CORE FUNCTIONS ───
 
+@tracing.observe()
 async def _write_single_story(topic: str, audience: str, persona: str) -> Agent:
     """Write one story with a specific creative persona.
 
@@ -89,6 +91,7 @@ async def _write_single_story(topic: str, audience: str, persona: str) -> Agent:
     return agent
 
 
+@tracing.observe()
 async def write_stories(
     topic: str, audience: str = "general", n: int = 3
 ) -> list[Agent]:
@@ -104,6 +107,7 @@ async def write_stories(
     return list(agents)
 
 
+@tracing.observe()
 async def review_stories(
     writer_agents: list[Agent], topic: str
 ) -> tuple[Agent, int, str, Agent]:
@@ -149,6 +153,7 @@ async def review_stories(
     return reviewer, winning_index, feedback_text, winning_agent
 
 
+@tracing.observe()
 async def revise_story(writer_agent: Agent, feedback: str) -> str:
     """Send feedback to the winning writer for revision.
 
@@ -171,6 +176,7 @@ async def revise_story(writer_agent: Agent, feedback: str) -> str:
 
 # ─── ORCHESTRATOR ───
 
+@tracing.observe()
 async def run_writers_room(
     topic: str,
     audience: str = "general",

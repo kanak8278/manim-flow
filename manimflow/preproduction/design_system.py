@@ -9,6 +9,7 @@ The design system doesn't change WHAT happens — it decides HOW everything look
 import re
 from dataclasses import dataclass
 from ..agent import Agent
+from .. import tracing
 from ..prompts.design_system import DESIGN_SYSTEM_SYSTEM
 
 
@@ -28,6 +29,7 @@ def _extract_xml_tag(text: str, tag: str) -> str:
     return match.group(1).strip() if match else ""
 
 
+@tracing.observe()
 async def design_story(title: str, story_text: str) -> DesignedStory:
     """Take a free-form story and add complete visual specifications.
 
