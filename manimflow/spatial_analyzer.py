@@ -367,58 +367,106 @@ def _check_overlaps(on_screen: set, elements: dict, time: float,
     if _reported_pairs is None:
         _reported_pairs = set()
 
-    text_elements = [
+    # Check ALL elements against ALL other elements (not just text-vs-text)
+    all_elements = [
         (name, elements[name])
         for name in on_screen
-        if name in elements and elements[name].kind in ("text", "mathtex")
+        if name in elements
     ]
 
-    shape_elements = [
-        (name, elements[name])
-        for name in on_screen
-        if name in elements and elements[name].kind not in ("text", "mathtex")
-    ]
-
-    # Check text-vs-text overlap
-    for i, (name1, elem1) in enumerate(text_elements):
-        for name2, elem2 in text_elements[i+1:]:
+    for i, (name1, elem1) in enumerate(all_elements):
+        for name2, elem2 in all_elements[i+1:]:
             pair_key = tuple(sorted([name1, name2]))
             if pair_key in _reported_pairs:
                 continue  # Already reported this pair
 
             overlap = elem1.bbox.overlap_area(elem2.bbox)
             if overlap > 0:
-                min_area = min(
-                    elem1.bbox.width * elem1.bbox.height,
-                    elem2.bbox.width * elem2.bbox.height,
+                area1 = elem1.bbox.width * elem1.bbox.height
+                area2 = elem2.bbox.width * elem2.bbox.height
+                min_area = min(area1, area2)
+
+                if min_area <= 0:
+                    continue
+
+                overlap_ratio = overlap / min_area
+
+                # Determine if this overlap is likely intentional
+                intentional = _is_intentional_overlap(
+                    name1, elem1, name2, elem2, overlap_ratio
                 )
-                if min_area > 0 and overlap / min_area > 0.3:
+
+                if intentional:
+                    continue  # Skip intentional overlaps
+
+                if overlap_ratio > 0.3:
                     _reported_pairs.add(pair_key)
                     issues.append(
-                        f"Line {line}: Text overlap between '{name1}' and '{name2}' "
-                        f"(overlap: {overlap/min_area:.0%})"
+                        f"Line {line}: '{name1}' ({elem1.kind}) overlaps '{name2}' ({elem2.kind}) "
+                        f"({overlap_ratio:.0%} overlap)"
                     )
-                elif overlap > 0.1:
+                elif overlap_ratio > 0.1:
                     _reported_pairs.add(pair_key)
                     warnings.append(
-                        f"Line {line}: Possible text overlap between '{name1}' and '{name2}'"
+                        f"Line {line}: Possible overlap between '{name1}' and '{name2}'"
                     )
 
-    # Check text-vs-shape overlap (text hidden behind shapes)
-    for name_t, elem_t in text_elements:
-        for name_s, elem_s in shape_elements:
-            pair_key = tuple(sorted([name_t, name_s]))
-            if pair_key in _reported_pairs:
-                continue
-            overlap = elem_t.bbox.overlap_area(elem_s.bbox)
-            if overlap > 0:
-                t_area = elem_t.bbox.width * elem_t.bbox.height
-                if t_area > 0 and overlap / t_area > 0.5:
-                    _reported_pairs.add(pair_key)
-                    warnings.append(
-                        f"Line {line}: Text '{name_t}' overlaps shape '{name_s}' "
-                        f"({overlap/t_area:.0%} of text hidden)"
-                    )
+
+def _is_intentional_overlap(name1: str, elem1, name2: str, elem2,
+                             overlap_ratio: float) -> bool:
+    """Determine if overlap between two elements is intentional.
+
+    Intentional overlaps:
+    - Label inside its parent shape (text inside a rectangle = labeling)
+    - Small element inside large container (child inside parent)
+    - Label next to its shape (positioned with .next_to)
+
+    Accidental overlaps:
+    - Two shapes of similar size at same position (both competing for space)
+    - Two text elements at same position (both trying to label)
+    - Elements from different conceptual groups at same spot
+    """
+    kind1, kind2 = elem1.kind, elem2.kind
+    area1 = elem1.bbox.width * elem1.bbox.height
+    area2 = elem2.bbox.width * elem2.bbox.height
+
+    # Rule 1: Text inside a shape = intentional label
+    # (small text fully inside larger shape)
+    if kind1 == "text" and kind2 != "text":
+        if area2 > 0 and area1 / area2 < 0.4:  # Text is much smaller than shape
+            return True
+    if kind2 == "text" and kind1 != "text":
+        if area1 > 0 and area2 / area1 < 0.4:
+            return True
+
+    # Rule 2: Small shape inside large container = intentional containment
+    # (child-parent relationship — e.g., card inside a larger frame)
+    if area1 > 0 and area2 > 0:
+        size_ratio = min(area1, area2) / max(area1, area2)
+        if size_ratio < 0.25:  # One is much bigger than the other (4x+)
+            return True  # Likely container-child relationship
+
+    # Rule 3: Name suggests relationship
+    # (e.g., "court_label" with "court_rect", or "title" with "title_bg")
+    name1_base = name1.replace("_label", "").replace("_text", "").replace("_title", "")
+    name2_base = name2.replace("_label", "").replace("_text", "").replace("_title", "")
+    if name1_base == name2_base:
+        return True  # Same base name = related elements
+    if name1_base in name2 or name2_base in name1:
+        return True  # One name contains the other
+
+    # Rule 4: Two text elements at the same position = NOT intentional
+    if kind1 == "text" and kind2 == "text":
+        return False  # Two competing labels
+
+    # Rule 5: Two shapes of similar size at same position = NOT intentional
+    if kind1 != "text" and kind2 != "text":
+        if area1 > 0 and area2 > 0:
+            size_ratio = min(area1, area2) / max(area1, area2)
+            if size_ratio > 0.5:  # Similar size = competing, not containing
+                return False
+
+    return False  # Default: not intentional
 
 
 def _check_empty_screen(timeline: list, total_time: float, warnings: list):
