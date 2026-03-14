@@ -20,6 +20,7 @@ from .timing import extract_scene_timings, rewrite_narration_for_timing, get_vid
 from .code_editor import surgical_fix
 from .platform import PlatformConfig, get_platform_config, config_to_story_context
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
+from .writers_room import run_writers_room
 
 
 def generate_video(
@@ -60,35 +61,41 @@ def generate_video(
 
     platform_context = config_to_story_context(platform_config)
 
-    _log("\n--- Step 1/5: Generating story script ---")
+    # === Step 1: Writers Room (explore angles → draft → director review → revise) ===
+    _log("\n--- Step 1: Writers Room ---")
 
-    story = generate_story(topic, duration_seconds=duration, category=category)
+    approved = run_writers_room(
+        topic=topic,
+        audience="general",
+        duration=duration,
+        max_revisions=2,
+        verbose=verbose,
+    )
+
+    # Convert approved story to the format the rest of the pipeline expects
+    story = {
+        "title": approved.title,
+        "duration_target": duration,
+        "category": category or "formula",
+        "hook_question": approved.angle.hook,
+        "scenes": approved.scenes,
+        "color_scheme": {},
+        "math_components": {
+            "key_insight": approved.angle.aha_moment,
+        },
+    }
 
     story_path = os.path.join(output_dir, "story.json")
     with open(story_path, "w") as f:
         json.dump(story, f, indent=2)
 
-    _log(f"  Story: \"{story.get('title', 'Untitled')}\"")
-    _log(f"  Scenes: {len(story.get('scenes', []))}")
+    _log(f"\n  Approved story: \"{approved.title}\"")
+    _log(f"  Angle: {approved.angle.title}")
+    _log(f"  Director score: {approved.director_notes.score}/10")
+    _log(f"  Scenes: {len(approved.scenes)}")
+    _log(f"  Revisions: {approved.revision_count}")
 
-    # === Step 1.5: Narrative review — catch bad stories before code generation ===
-    _log("\n--- Step 1.5/5: Narrative review ---")
-    narrative_review = review_narrative(story, platform_context)
-
-    if verbose:
-        print_narrative_review(narrative_review)
-
-    narrative_score = narrative_review.get("overall_score", 0)
-    narrative_verdict = narrative_review.get("verdict", "IMPROVE")
-
-    if isinstance(narrative_score, (int, float)) and narrative_score < 6:
-        _log(f"  Narrative score {narrative_score}/10 — improving story...")
-        story = improve_narrative(story, narrative_review)
-        with open(story_path, "w") as f:
-            json.dump(story, f, indent=2)
-        _log(f"  Improved story: \"{story.get('title', 'Untitled')}\"")
-
-    # === Step 2: Generate Manim Code (VIDEO FIRST — audio adapts to video later) ===
+    # === Step 2: Generate Manim Code ===
     _log("\n--- Step 2: Generating Manim code ---")
 
     code = generate_manim_code(story)
