@@ -46,9 +46,9 @@ COLOR_RULES = """
 
 2. MAXIMUM 5 SEMANTIC COLORS + white + dim gray:
    - 3-5 saturated colors for concepts
-   - WHITE for primary text
-   - GREY (#888888) for de-emphasized elements
-   - BLACK background is negative space, not a "color"
+   - #E0E0E0 for primary text (NOT pure white — causes eye strain)
+   - #888888 for de-emphasized elements
+   - Background: #1a1a2e or BLACK (not pure #000000 — causes halation)
 
 3. DIM-AND-HIGHLIGHT PATTERN (3B1B signature):
    When focusing on one element:
@@ -60,7 +60,13 @@ COLOR_RULES = """
 4. HIGH-CONTRAST ON DARK BACKGROUND:
    Good: #3498db (blue), #2ecc71 (green), #e74c3c (red), #f39c12 (gold), #9b59b6 (purple)
    Bad: dark brown, dark green, navy — they vanish on black
-   All text: WHITE or YELLOW. Never light gray for important text.
+
+5. 60-30-10 RULE: 60% dark background, 30% surfaces/text, 10% accent color.
+   Only ONE saturated accent color. Not three.
+
+6. NEVER PLACE vibrating color pairs adjacent:
+   Red text on blue, green on red, cyan on magenta — these cause eye strain.
+   Add neutral separator or desaturate one color by 30%.
 """
 
 # ─── VISUAL VOCABULARY ───
@@ -111,28 +117,39 @@ ANIMATION_RULES = """
    Viewer's eye can only track one moving thing at a time.
    Exception: coordinated group animations count as one.
 
-3. RUN TIMES:
+3. RUN TIMES (Disney timing principles):
    - Standard transitions (Create, FadeIn, Write): 1.0-2.0s
    - Emphasis (Indicate, Flash): 0.3-0.5s
    - Exit (FadeOut): 0.5-1.0s
-   - Never > 3.0s (sluggish). Never < 0.3s (jumpy).
+   - Dramatic reveals: 1.2-2.0s
+   - Never > 3.0s (sluggish). Never < 0.3s (jumpy, viewer can't track).
 
 4. ENTER/EXIT VOCABULARY:
    - Shapes: Create() or GrowFromCenter()
    - Text: Write() or FadeIn()
-   - Groups: FadeIn() with lag_ratio=0.2 (staggered)
+   - Groups: FadeIn() with lag_ratio=0.2 (staggered — Disney's overlapping action)
    - Exit: Always FadeOut(). Never Uncreate() (looks like rewinding).
    - Emphasis: Indicate() or Circumscribe()
-   - Transform: Transform() or ReplacementTransform()
+   - Transform: Transform() or ReplacementTransform() (morph over cut — 3B1B key technique)
 
-5. PAUSE-AFTER-REVEAL: After showing something new, wait 1-2s.
-   Viewers need time to read and process. Voiceover fills this time.
+5. PAUSE-AFTER-REVEAL: After showing something new, wait 1.5-2.5s.
+   Formula: display_time = (word_count / 3) + 1 seconds minimum.
+   Voiceover fills this time. Viewer needs processing time.
 
 6. CLEAN SCENE TRANSITIONS:
    a. FadeOut all current elements
    b. Brief pause (0.3-0.5s)
-   c. FadeIn new scene title
+   c. FadeIn new scene content
    Never cut directly from one complex diagram to another.
+   The viewer needs the "mental reset" of a cleared frame.
+
+7. DISNEY'S STAGING: Only ONE thing demands attention at any moment.
+   If you pause the video at any frame, the viewer should instantly know
+   where to look. Use dim-and-highlight to enforce single focus.
+
+8. TRANSFORM OVER CUT: When transitioning between representations,
+   MORPH the current visual into the next (Transform). Don't fade out
+   and create a new one. Morphing shows the RELATIONSHIP between states.
 """
 
 # ─── TYPOGRAPHY ───
