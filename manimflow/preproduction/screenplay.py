@@ -20,8 +20,8 @@ were implemented in production Manim videos.
 import json
 import re
 from dataclasses import dataclass, field
-from ..agent import Agent, extract_json
-from .. import tracing
+from ..core.agent import Agent, extract_json
+from ..core import tracing
 from ..knowledge.tool import TOOLS, get_knowledge_context_screenplay
 from ..prompts.screenplay import SCREENPLAY_SYSTEM
 from .screenplay_validator import validate_screenplay as _validate, StructuralIssue

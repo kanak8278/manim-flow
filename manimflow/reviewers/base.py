@@ -1,7 +1,7 @@
 """Base reviewer class — all domain-specific reviewers extend this."""
 
 from dataclasses import dataclass, field
-from ..agent import call_llm, extract_json
+from ..core.agent import call_llm, extract_json
 
 
 @dataclass

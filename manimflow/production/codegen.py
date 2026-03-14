@@ -3,7 +3,7 @@
 import json
 import logging
 
-from ..agent import Agent, call_llm, extract_code
+from ..core.agent import Agent, call_llm, extract_code
 from ..reference.manim_reference import MANIM_API_REFERENCE
 from ..reference.transitions import get_transition_guide
 from ..reference.domain_knowledge import get_full_design_knowledge

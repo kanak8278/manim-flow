@@ -89,7 +89,7 @@ async def rewrite_narration_for_timing(story: dict, scene_timings: list[dict]) -
     Uses LLM to rewrite narration text so TTS output matches each scene's length.
     Rough rule: ~150 words per minute for clear narration = 2.5 words/second.
     """
-    from ..agent import call_llm, extract_json
+    from ..core.agent import call_llm, extract_json
 
     WORDS_PER_SECOND = 2.0  # Conservative — ensures narration fits within scene duration
 

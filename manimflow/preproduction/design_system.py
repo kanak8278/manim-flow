@@ -8,8 +8,8 @@ The design system doesn't change WHAT happens — it decides HOW everything look
 
 import re
 from dataclasses import dataclass
-from ..agent import Agent
-from .. import tracing
+from ..core.agent import Agent
+from ..core import tracing
 from ..prompts.design_system import DESIGN_SYSTEM_SYSTEM
 
 

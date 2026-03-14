@@ -8,7 +8,7 @@ The LLM receives the code with line numbers and can specify exact edits.
 
 import re
 import json
-from ..agent import Agent, call_llm
+from ..core.agent import Agent, call_llm
 from ..knowledge.tool import TOOLS, get_knowledge_system_context
 
 

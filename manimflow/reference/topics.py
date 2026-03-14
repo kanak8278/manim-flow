@@ -6,7 +6,7 @@ AND "visual demonstrability" are the highest-performing content.
 Also includes a curated library of proven viral math/physics topics.
 """
 
-from .agent import call_llm, extract_json
+from ..core.agent import call_llm, extract_json
 
 
 # Curated topic library — topics proven to drive engagement

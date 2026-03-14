@@ -6,7 +6,7 @@ import sys
 
 from .pipeline import generate_video
 from .reference.categories import list_categories, CATEGORIES
-from .topics import get_suggested_topics
+from .reference.topics import get_suggested_topics
 
 
 def main():

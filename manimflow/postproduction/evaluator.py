@@ -6,7 +6,7 @@ import json
 import base64
 from pathlib import Path
 
-from ..agent import call_llm
+from ..core.agent import call_llm
 
 
 def extract_keyframes(video_path: str, output_dir: str, num_frames: int = 8) -> list[str]:
