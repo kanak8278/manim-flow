@@ -110,10 +110,19 @@ def generate_manim_code(story: dict) -> str:
         visual = scene.get("visual_description", "")[:80]
         scene_hints.append(f"  Scene '{name}': narration=\"{narration[:100]}\" visual=\"{visual}\"")
 
+    # Include design system if available
+    design_context = story.pop("_design_context", "")
+
     user_prompt = (
         f"Generate a complete VoiceoverScene (~{target_duration}s) for this story:\n\n"
         + json.dumps(story, indent=2)
-        + "\n\nSCENE NARRATION TO USE:\n" + "\n".join(scene_hints)
+    )
+
+    if design_context:
+        user_prompt += f"\n\n{design_context}"
+
+    user_prompt += (
+        "\n\nSCENE NARRATION TO USE:\n" + "\n".join(scene_hints)
         + "\n\nCRITICAL:"
         "\n- Use VoiceoverScene with GTTSService(transcription_model='base')"
         "\n- Wrap each scene in `with self.voiceover(text=...)` with bookmark tags"

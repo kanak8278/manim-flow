@@ -21,6 +21,7 @@ from .code_editor import surgical_fix
 from .platform import PlatformConfig, get_platform_config, config_to_story_context
 from .narrative_reviewer import review_narrative, improve_narrative, print_narrative_review
 from .writers_room import run_writers_room
+from .design_system import generate_design_system, design_to_codegen_context, print_design_system
 
 
 def generate_video(
@@ -94,6 +95,25 @@ def generate_video(
     _log(f"  Director score: {approved.director_notes.score}/10")
     _log(f"  Scenes: {len(approved.scenes)}")
     _log(f"  Revisions: {approved.revision_count}")
+
+    # === Step 1.5: Design System ===
+    _log("\n--- Step 1.5: Generating design system ---")
+    design = generate_design_system(
+        story,
+        angle_title=approved.angle.title,
+        angle_mood=approved.angle.emotional_arc,
+    )
+    if verbose:
+        print_design_system(design)
+
+    # Save design system
+    import json as _json
+    design_path = os.path.join(output_dir, "design_system.json")
+    with open(design_path, "w") as f:
+        _json.dump(design.to_dict(), f, indent=2)
+
+    # Inject design context into story for code generation
+    story["_design_context"] = design_to_codegen_context(design)
 
     # === Step 2: Generate Manim Code ===
     _log("\n--- Step 2: Generating Manim code ---")
