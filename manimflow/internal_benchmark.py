@@ -56,15 +56,41 @@ def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_outpu
         output_dir = os.path.join(output_base, tid)
         os.makedirs(output_dir, exist_ok=True)
 
-        # Create minimal story for code generation
+        # Create a proper story with real narration for code generation
         story = {
             "title": topic,
             "duration_target": 90,
             "scenes": [
-                {"id": 1, "name": "hook", "narration": f"Let me explain {topic}", "visual": "Opening visual"},
-                {"id": 2, "name": "build", "narration": "Here's how it works", "visual": "Main explanation"},
-                {"id": 3, "name": "reveal", "narration": "And here's the key insight", "visual": "The aha moment"},
-                {"id": 4, "name": "conclusion", "narration": "So that's why", "visual": "Summary"},
+                {
+                    "id": 1, "name": "hook", "duration_seconds": 15,
+                    "narration": f"What if I told you there is something surprising about {topic}? Let me show you.",
+                    "visual": "Opening hook with a surprising visual that grabs attention",
+                    "teaching_goal": "Grab attention and create curiosity",
+                },
+                {
+                    "id": 2, "name": "setup", "duration_seconds": 20,
+                    "narration": f"To understand this, we first need to see the basics. Here is how {topic} is structured.",
+                    "visual": "Clear diagram showing the basic structure or components",
+                    "teaching_goal": "Establish the foundational concepts",
+                },
+                {
+                    "id": 3, "name": "build", "duration_seconds": 25,
+                    "narration": "Now watch what happens when we look deeper. This is where it gets interesting.",
+                    "visual": "Progressive build-up showing how components interact and connect",
+                    "teaching_goal": "Build understanding step by step",
+                },
+                {
+                    "id": 4, "name": "reveal", "duration_seconds": 15,
+                    "narration": "And here is the key insight that makes everything click.",
+                    "visual": "The aha moment — a dramatic visual reveal of the core insight",
+                    "teaching_goal": "The aha moment — everything connects",
+                },
+                {
+                    "id": 5, "name": "conclusion", "duration_seconds": 15,
+                    "narration": f"So that is why {topic} works this way. Next time you see this, you will understand.",
+                    "visual": "Clean summary showing the complete picture",
+                    "teaching_goal": "Reinforce the insight and leave a lasting impression",
+                },
             ],
         }
 
@@ -98,18 +124,27 @@ def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_outpu
         underutil = sum(1 for w in spatial["warnings"] if "underutil" in w)
         lines = len(code.splitlines())
 
-        # Try rendering
+        # Try rendering with fix loop (up to 3 attempts)
         render_start = time.time()
-        render_result = render_scene(code=code, output_dir=output_dir, quality="l")
+        rendered = False
+        render_result = None
+        for attempt in range(3):
+            render_result = render_scene(code=code, output_dir=output_dir, quality="l")
+            if render_result["success"]:
+                rendered = True
+                break
+            # Fix and retry
+            from .codegen import fix_manim_code
+            code = fix_manim_code(code, render_result["error"])
+            code, _ = sanitize_code(code)
+            with open(code_path, "w") as f:
+                f.write(code)
         render_time = time.time() - render_start
-        rendered = render_result["success"]
 
-        # Extract frame if rendered
+        # Extract best frame (try multiple timestamps, pick largest file = most content)
         frame_path = ""
         if rendered and render_result.get("video_path"):
             video_path = render_result["video_path"]
-            frame_path = os.path.join(output_dir, "key_frame.png")
-            # Extract frame at 40% of video
             dur_result = subprocess.run(
                 ["ffprobe", "-v", "error", "-show_entries", "format=duration",
                  "-of", "csv=p=0", video_path],
@@ -117,12 +152,27 @@ def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_outpu
             )
             if dur_result.returncode == 0:
                 duration = float(dur_result.stdout.strip())
-                ts = duration * 0.4
-                subprocess.run(
-                    ["ffmpeg", "-y", "-ss", str(ts), "-i", video_path,
-                     "-vframes", "1", "-q:v", "2", frame_path],
-                    capture_output=True, text=True,
-                )
+                candidates = []
+                for pct in [0.2, 0.4, 0.6, 0.8]:
+                    ts = max(0.5, duration * pct)
+                    cand_path = os.path.join(output_dir, f"frame_cand_{int(pct*100)}.png")
+                    subprocess.run(
+                        ["ffmpeg", "-y", "-ss", str(ts), "-i", video_path,
+                         "-vframes", "1", "-q:v", "2", cand_path],
+                        capture_output=True, text=True,
+                    )
+                    if os.path.exists(cand_path):
+                        candidates.append((cand_path, os.path.getsize(cand_path)))
+
+                if candidates:
+                    # Pick frame with most visual content (largest file size)
+                    best = max(candidates, key=lambda c: c[1])
+                    frame_path = os.path.join(output_dir, "key_frame.png")
+                    subprocess.run(["cp", best[0], frame_path])
+                    # Cleanup candidates
+                    for c, _ in candidates:
+                        if c != frame_path and os.path.exists(c):
+                            os.remove(c)
 
         # Score
         code_score = max(0, 10 - overlaps * 0.5 - accum * 0.3 - underutil * 0.2)
