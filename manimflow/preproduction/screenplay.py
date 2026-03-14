@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from ..agent import Agent, extract_json
 from ..knowledge.tool import TOOLS, get_knowledge_context_screenplay
 from ..prompts.screenplay import SCREENPLAY_SYSTEM
+from .screenplay_validator import validate_screenplay as _validate, StructuralIssue
 
 
 @dataclass
@@ -44,21 +45,89 @@ class Screenplay:
     shots: list[Shot]
 
 
+def _parse_shots(data: dict) -> list[Shot]:
+    """Parse shot dicts into Shot objects."""
+    shots = []
+    for s in data.get("shots", []):
+        shots.append(Shot(
+            id=s.get("id", len(shots) + 1),
+            narration=s.get("narration", ""),
+            elements=s.get("elements", []),
+            animation_sequence=s.get("animation_sequence", []),
+            cleanup=s.get("cleanup", []),
+            persists=s.get("persists", []),
+        ))
+    return shots
+
+
+def _shots_to_dicts(shots: list[Shot]) -> list[dict]:
+    """Convert Shot objects back to dicts for validation/serialization."""
+    return [
+        {
+            "id": s.id,
+            "narration": s.narration,
+            "elements": s.elements,
+            "animation_sequence": s.animation_sequence,
+            "cleanup": s.cleanup,
+            "persists": s.persists,
+        }
+        for s in shots
+    ]
+
+
+def _format_issues_for_llm(issues: list[StructuralIssue]) -> str:
+    """Format validation issues into a clear message for the LLM."""
+    lines = ["The following structural issues were found in your screenplay:\n"]
+
+    # Group by shot
+    by_shot = {}
+    for issue in issues:
+        by_shot.setdefault(issue.shot_id, []).append(issue)
+
+    for shot_id in sorted(by_shot.keys()):
+        shot_issues = by_shot[shot_id]
+        if shot_id == 0:
+            lines.append("GLOBAL ISSUES:")
+        else:
+            lines.append(f"SHOT {shot_id}:")
+
+        for issue in shot_issues:
+            prefix = "ERROR" if issue.severity == "error" else "WARNING"
+            lines.append(f"  [{prefix}] {issue.description}")
+
+    lines.append(
+        "\nFix ALL errors and as many warnings as possible. "
+        "Return ONLY the corrected shots as a JSON array. "
+        "Include ONLY the shots that need changes — I will patch them "
+        "into the full screenplay by matching shot IDs."
+    )
+
+    return "\n".join(lines)
+
+
 async def write_screenplay(
     title: str,
     visual_story: str,
     design_rules: str,
+    max_fix_rounds: int = 3,
+    verbose: bool = True,
 ) -> Screenplay:
     """Convert visual story into structured shot specifications.
+
+    Generates the screenplay, validates it, and fixes issues in a conversation loop.
+    The same agent maintains context across rounds — no need to resend previous output.
 
     Args:
         title: Video title
         visual_story: Enriched prose with all visual details (from design system)
         design_rules: Global design rules text (from design system)
+        max_fix_rounds: Max validation-fix rounds (default 3)
+        verbose: Print progress
 
     Returns:
         Screenplay with structured shots using semantic positioning
     """
+    _log = print if verbose else lambda *a: None
     system = SCREENPLAY_SYSTEM + "\n\n" + get_knowledge_context_screenplay()
 
     agent = Agent(
@@ -67,6 +136,7 @@ async def write_screenplay(
         enable_thinking=True,
     )
 
+    # ── First pass: generate full screenplay ──
     agent.add_user_message(
         f"TITLE: {title}\n\n"
         f"DESIGN RULES:\n{design_rules}\n\n"
@@ -85,21 +155,89 @@ async def write_screenplay(
 
     response = await agent.run(max_tool_rounds=6)
     data = extract_json(response)
+    agent.add_assistant_message(response)
 
-    # Parse design rules from response
     rules = data.get("design_rules", {})
+    shots = _parse_shots(data)
 
-    # Parse shots
-    shots = []
-    for s in data.get("shots", []):
-        shots.append(Shot(
-            id=s.get("id", len(shots) + 1),
-            narration=s.get("narration", ""),
-            elements=s.get("elements", []),
-            animation_sequence=s.get("animation_sequence", []),
-            cleanup=s.get("cleanup", []),
-            persists=s.get("persists", []),
-        ))
+    _log(f"  Screenplay: {len(shots)} shots, {sum(len(s.elements) for s in shots)} elements")
+
+    # ── Validation-fix loop ──
+    for fix_round in range(max_fix_rounds):
+        # Validate the full screenplay
+        sp_data = {"shots": _shots_to_dicts(shots), "design_rules": rules}
+        validation = _validate(sp_data)
+
+        errors = [i for i in validation["issues"] if i.severity == "error"]
+        warnings = [i for i in validation["issues"] if i.severity == "warning"]
+
+        _log(f"  Validation round {fix_round + 1}: {len(errors)} errors, {len(warnings)} warnings")
+
+        if not errors:
+            _log(f"  Screenplay valid (0 errors, {len(warnings)} warnings)")
+            break
+
+        # Log the issues
+        for issue in errors[:5]:
+            _log(f"    [ERROR] Shot {issue.shot_id}: {issue.description}")
+        for issue in warnings[:3]:
+            _log(f"    [WARN] Shot {issue.shot_id}: {issue.description}")
+
+        # Send issues to the LLM for fixing (same conversation — it has full context)
+        issues_text = _format_issues_for_llm(errors + warnings[:10])  # prioritize errors
+        agent.add_user_message(issues_text)
+
+        _log(f"  Fixing {len(errors)} errors...")
+        fix_response = await agent.run(max_tool_rounds=2)
+        agent.add_assistant_message(fix_response)
+
+        # Parse the corrected shots
+        try:
+            fix_data = extract_json(fix_response)
+        except Exception as e:
+            _log(f"  Could not parse fix response: {e}")
+            break
+
+        # The LLM returns: [{"id":2,...}] or {"shots":[...]} or {"id":2,...} (single shot)
+        if isinstance(fix_data, list):
+            fixed_shot_list = fix_data
+        elif isinstance(fix_data, dict) and "shots" in fix_data:
+            fixed_shot_list = fix_data["shots"]
+        elif isinstance(fix_data, dict) and "id" in fix_data:
+            fixed_shot_list = [fix_data]  # single shot dict
+        else:
+            fixed_shot_list = []
+
+        if not fixed_shot_list:
+            _log(f"  No corrected shots returned")
+            break
+
+        # Patch corrected shots into the full screenplay by matching shot IDs
+        fixed_by_id = {}
+        for s in fixed_shot_list:
+            sid = s.get("id")
+            if sid is not None:
+                fixed_by_id[sid] = s
+
+        patched = 0
+        for i, shot in enumerate(shots):
+            if shot.id in fixed_by_id:
+                fixed = fixed_by_id[shot.id]
+                shots[i] = Shot(
+                    id=shot.id,
+                    narration=fixed.get("narration", shot.narration),
+                    elements=fixed.get("elements", shot.elements),
+                    animation_sequence=fixed.get("animation_sequence", shot.animation_sequence),
+                    cleanup=fixed.get("cleanup", shot.cleanup),
+                    persists=fixed.get("persists", shot.persists),
+                )
+                patched += 1
+
+        _log(f"  Patched {patched} shots")
+
+        # Also update design_rules if the fix included them
+        if isinstance(fix_data, dict) and "design_rules" in fix_data:
+            rules = fix_data["design_rules"]
 
     return Screenplay(
         title=title,

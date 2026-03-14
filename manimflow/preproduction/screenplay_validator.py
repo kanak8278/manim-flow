@@ -38,8 +38,8 @@ def _validate_single_anim(anim: dict, shot_id: int, known_names: set, issues: li
         to_elem = anim.get("to_element")
         if not to_elem:
             issues.append(StructuralIssue(
-                shot_id, "warning", "transform_no_target",
-                f"Transform of '{target}' doesn't specify 'to_element'"))
+                shot_id, "error", "transform_no_target",
+                f"Transform of '{target}' doesn't specify 'to_element' — codegen cannot implement"))
         elif isinstance(to_elem, dict):
             new_name = to_elem.get("name", "")
             if new_name:
@@ -61,8 +61,8 @@ def _validate_single_anim(anim: dict, shot_id: int, known_names: set, issues: li
         )
         if not has_end:
             issues.append(StructuralIssue(
-                shot_id, "warning", "move_no_end",
-                f"move_to for '{target}' doesn't specify end position"))
+                shot_id, "error", "move_no_end",
+                f"move_to for '{target}' doesn't specify end position — codegen cannot implement"))
         # Validate end_position_on references a known element
         end_on = anim.get("end_position_on", "")
         if end_on and end_on not in known_names:
@@ -307,8 +307,8 @@ def validate_screenplay(screenplay_data: dict) -> dict:
         accounted = cleanup | persists
         for name in visible_at_end - accounted:
             issues.append(StructuralIssue(
-                shot_id, "warning", "unaccounted_element",
-                f"Element '{name}' not in cleanup or persists"))
+                shot_id, "error", "unaccounted_element",
+                f"Element '{name}' not in cleanup or persists — will stay on screen"))
 
         for name in cleanup:
             if name not in visible_at_end:

@@ -586,17 +586,31 @@ async def call_llm(
 # ─── Parsing utilities (unchanged) ──────────────────────────────
 
 
-def extract_json(text: str) -> dict:
-    """Extract JSON from LLM response (handles markdown code blocks)."""
+def extract_json(text: str) -> dict | list:
+    """Extract JSON from LLM response (handles markdown code blocks, objects, and arrays)."""
     if "```json" in text:
         text = text.split("```json")[1].split("```")[0]
     elif "```" in text:
         block = text.split("```")[1].split("```")[0]
-        if block.strip().startswith("{"):
+        stripped = block.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
             text = block
 
     text = text.strip()
 
+    # Try array first (e.g. [{...}, {...}])
+    if text.lstrip().startswith("["):
+        arr_start = text.find("[")
+        depth = 0
+        for i in range(arr_start, len(text)):
+            if text[i] == "[":
+                depth += 1
+            elif text[i] == "]":
+                depth -= 1
+                if depth == 0:
+                    return json.loads(text[arr_start : i + 1])
+
+    # Then try object
     start = text.find("{")
     if start == -1:
         raise ValueError(f"No JSON found in response: {text[:200]}")
