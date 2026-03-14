@@ -10,7 +10,7 @@ Encodes knowledge from:
 
 import json
 from .base import BaseReviewer, ReviewResult
-from ..domain_knowledge import get_full_design_knowledge
+from ..reference.domain_knowledge import get_full_design_knowledge
 
 
 class DesignReviewer(BaseReviewer):

@@ -16,8 +16,8 @@ Config: n = parallel writers (default 3), t = feedback rounds (default 1)
 import asyncio
 import re
 from dataclasses import dataclass
-from .agent import Agent
-from .prompts.writers_room import (
+from ..agent import Agent
+from ..prompts.writers_room import (
     WRITER_PERSONAS,
     STORY_WRITER_SYSTEM,
     STORY_REVIEWER_SYSTEM,

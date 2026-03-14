@@ -4,23 +4,23 @@ import json
 import os
 import subprocess
 
-from .codegen import generate_manim_code, fix_manim_code
-from .renderer import render_scene, validate_code
-from .evaluator import (
+from .production.codegen import generate_manim_code, fix_manim_code
+from .production.renderer import render_scene, validate_code
+from .postproduction.evaluator import (
     static_code_checks, evaluate_frames_with_code, evaluate_video_frames,
     print_evaluation,
 )
-from .spatial_analyzer import analyze_scene, print_spatial_analysis
-from .code_sanitizer import sanitize_code
-from .voiceover import generate_voiceover, merge_video_audio
-from .music import select_mood, generate_ambient_track, mix_audio_tracks
-from .thumbnail import generate_thumbnail_with_title
-from .timing import extract_scene_timings, rewrite_narration_for_timing, get_video_duration
-from .code_editor import surgical_fix
-from .platform import PlatformConfig, get_platform_config, config_to_story_context
-from .writers_room import run_writers_room
-from .design_system import generate_design_system, design_to_codegen_context, print_design_system
-from .screenplay import write_screenplay, screenplay_to_codegen_prompt, print_screenplay
+from .production.spatial_analyzer import analyze_scene, print_spatial_analysis
+from .production.code_sanitizer import sanitize_code
+from .postproduction.voiceover import generate_voiceover, merge_video_audio
+from .postproduction.music import select_mood, generate_ambient_track, mix_audio_tracks
+from .postproduction.thumbnail import generate_thumbnail_with_title
+from .postproduction.timing import extract_scene_timings, rewrite_narration_for_timing, get_video_duration
+from .production.code_editor import surgical_fix
+from .reference.platform import PlatformConfig, get_platform_config, config_to_story_context
+from .preproduction.writers_room import run_writers_room
+from .preproduction.design_system import design_story as generate_design_system, DesignedStory, print_designed_story as print_design_system
+from .preproduction.screenplay import write_screenplay, screenplay_to_codegen_context as screenplay_to_codegen_prompt, print_screenplay
 from .reviewers.design_reviewer import DesignReviewer
 from .reviewers.base import print_review
 from . import tracing

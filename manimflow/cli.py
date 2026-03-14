@@ -5,7 +5,7 @@ import asyncio
 import sys
 
 from .pipeline import generate_video
-from .categories import list_categories, CATEGORIES
+from .reference.categories import list_categories, CATEGORIES
 from .topics import get_suggested_topics
 
 

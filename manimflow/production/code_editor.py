@@ -8,8 +8,8 @@ The LLM receives the code with line numbers and can specify exact edits.
 
 import re
 import json
-from .agent import Agent, call_llm
-from .knowledge.tool import TOOLS, get_knowledge_system_context
+from ..agent import Agent, call_llm
+from ..knowledge.tool import TOOLS, get_knowledge_system_context
 
 
 EDITOR_SYSTEM_PROMPT = r"""You are a Manim code editor. You fix bugs by making SURGICAL EDITS — not by rewriting the entire file.
