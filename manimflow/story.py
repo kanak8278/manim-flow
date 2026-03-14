@@ -1,6 +1,6 @@
 """Story generation engine - turns a question/equation into a narrative script."""
 
-from .llm import call_llm, extract_json
+from .agent import call_llm, extract_json
 from .categories import get_category, suggest_category
 from .engagement import get_engagement_context
 
@@ -156,7 +156,7 @@ CRITICAL: Every scene must have concrete, implementable animation instructions.
 Return ONLY the JSON. No other text."""
 
 
-def generate_story(topic: str, duration_seconds: int = 120,
+async def generate_story(topic: str, duration_seconds: int = 120,
                    category: str | None = None) -> dict:
     """Generate a story script from a topic/question/equation.
 
@@ -202,7 +202,7 @@ def generate_story(topic: str, duration_seconds: int = 120,
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(system_prompt, user_prompt)
+    response = await call_llm(system_prompt, user_prompt)
     story = extract_json(response)
     story["category"] = category
     return story

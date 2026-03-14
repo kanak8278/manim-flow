@@ -13,11 +13,11 @@ Examples:
 
 import json
 import os
-from .llm import call_llm, extract_code
+from .agent import call_llm, extract_code
 from .code_editor import surgical_fix
 
 
-def apply_edit(
+async def apply_edit(
     edit_command: str,
     code: str,
     story: dict,
@@ -36,13 +36,13 @@ def apply_edit(
     changes = []
 
     if edit_type in ("code", "both"):
-        new_code = _edit_code(edit_command, code, story)
+        new_code = await _edit_code(edit_command, code, story)
         if new_code != code:
             code = new_code
             changes.append(f"Code modified: {edit_command}")
 
     if edit_type in ("story", "both"):
-        new_story = _edit_story(edit_command, story)
+        new_story = await _edit_story(edit_command, story)
         if new_story != story:
             story = new_story
             changes.append(f"Story modified: {edit_command}")
@@ -79,17 +79,17 @@ def _classify_edit(command: str) -> str:
         return "code"  # Default to code edits
 
 
-def _edit_code(command: str, code: str, story: dict) -> str:
+async def _edit_code(command: str, code: str, story: dict) -> str:
     """Apply a code edit using the surgical editor."""
     edit_prompt = (
         f"USER EDIT REQUEST: {command}\n\n"
         f"Apply this change to the Manim code. "
         f"Only modify the parts that need to change."
     )
-    return surgical_fix(code, edit_prompt)
+    return await surgical_fix(code, edit_prompt)
 
 
-def _edit_story(command: str, story: dict) -> dict:
+async def _edit_story(command: str, story: dict) -> dict:
     """Apply a story edit."""
     system = (
         "You are editing an existing video story script. "
@@ -103,7 +103,7 @@ def _edit_story(command: str, story: dict) -> dict:
         f"Return the modified story as valid JSON."
     )
 
-    response = call_llm(system, user_prompt)
+    response = await call_llm(system, user_prompt)
 
     try:
         if "```json" in response:

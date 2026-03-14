@@ -1,10 +1,15 @@
 """Manim code generation engine - turns a story script into working Manim code."""
 
 import json
-from .llm import call_llm, extract_code
+import logging
+
+from .agent import Agent, call_llm, extract_code
 from .manim_reference import MANIM_API_REFERENCE
 from .transitions import get_transition_guide
 from .domain_knowledge import get_full_design_knowledge
+from .knowledge.tool import TOOLS, get_knowledge_system_context
+
+logger = logging.getLogger(__name__)
 
 _TECHNICAL_RULES = r"""
 ## TECHNICAL RULES (violations = crash)
@@ -55,7 +60,7 @@ lines = [Line(parent.get_bottom(), c.get_top(), buff=0.1) for c in children]
 ```
 """
 
-CODEGEN_SYSTEM_PROMPT = (
+_BASE_SYSTEM_PROMPT = (
     "You are an expert educational animator. You create 3Blue1Brown-style videos.\n"
     "Every shape must MEAN something. No decorative geometry.\n"
     "Use labeled concept cards, arrows, and diagrams — not random shapes.\n\n"
@@ -63,11 +68,24 @@ CODEGEN_SYSTEM_PROMPT = (
     + "\n" + _TECHNICAL_RULES
     + "\n" + get_full_design_knowledge()
     + "\n" + get_transition_guide()
-    + "\nReturn ONLY Python code. No markdown.\n"
 )
 
+# Without knowledge tool (backward compat for call_llm path)
+CODEGEN_SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT + "\nReturn ONLY Python code. No markdown.\n"
 
-def generate_manim_code(story: dict) -> str:
+
+def _build_codegen_system_prompt() -> str:
+    """Build system prompt with knowledge base context."""
+    knowledge_ctx = get_knowledge_system_context()
+    return (
+        _BASE_SYSTEM_PROMPT
+        + "\n" + knowledge_ctx
+        + "\nSearch the knowledge base for relevant patterns BEFORE writing code."
+        "\nReturn ONLY Python code. No markdown.\n"
+    )
+
+
+async def generate_manim_code(story: dict) -> str:
     """Generate Manim code with voiceover sync from a story script."""
     target_duration = story.get("duration_target", 120)
 
@@ -109,13 +127,27 @@ def generate_manim_code(story: dict) -> str:
         "\n\nReturn ONLY Python code."
     )
 
-    response = call_llm(CODEGEN_SYSTEM_PROMPT, user_prompt)
+    agent = Agent(
+        system_prompt=_build_codegen_system_prompt(),
+        tools=TOOLS,
+    )
+    agent.add_user_message(user_prompt)
+    response = await agent.run(max_tool_rounds=3)
     return extract_code(response)
 
 
-def fix_manim_code(code: str, error: str) -> str:
-    """Fix broken Manim code."""
-    system = CODEGEN_SYSTEM_PROMPT + "\n\nFix the broken code. Return ONLY complete Python."
+async def fix_manim_code(code: str, error: str) -> str:
+    """Fix broken Manim code with knowledge base access."""
+    system = (
+        _build_codegen_system_prompt()
+        + "\n\nFix the broken code. Return ONLY complete Python."
+    )
     user_prompt = "Fix:\n```python\n" + code + "\n```\nERROR:\n" + error + "\n\nReturn ONLY code."
-    response = call_llm(system, user_prompt)
+
+    agent = Agent(
+        system_prompt=system,
+        tools=TOOLS,
+    )
+    agent.add_user_message(user_prompt)
+    response = await agent.run(max_tool_rounds=2)
     return extract_code(response)

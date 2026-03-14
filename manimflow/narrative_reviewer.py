@@ -12,7 +12,7 @@ Reviews:
 """
 
 import json
-from .llm import call_llm, extract_json
+from .agent import call_llm, extract_json
 
 
 REVIEW_PROMPT = """You are a content strategist for educational math/physics videos.
@@ -55,7 +55,7 @@ Return JSON:
 Score >= 7 = PASS. Score 5-7 = IMPROVE. Score < 5 = REJECT (regenerate from scratch)."""
 
 
-def review_narrative(story: dict, platform_context: str = "") -> dict:
+async def review_narrative(story: dict, platform_context: str = "") -> dict:
     """Review a story script and return scores + improvement suggestions."""
     user_prompt = (
         f"Review this video story script:\n\n{json.dumps(story, indent=2)}\n\n"
@@ -64,7 +64,7 @@ def review_narrative(story: dict, platform_context: str = "") -> dict:
         user_prompt += f"Platform context:\n{platform_context}\n\n"
     user_prompt += "Return ONLY valid JSON."
 
-    response = call_llm(REVIEW_PROMPT, user_prompt)
+    response = await call_llm(REVIEW_PROMPT, user_prompt)
 
     try:
         return extract_json(response)
@@ -77,7 +77,7 @@ def review_narrative(story: dict, platform_context: str = "") -> dict:
         }
 
 
-def improve_narrative(story: dict, review: dict) -> dict:
+async def improve_narrative(story: dict, review: dict) -> dict:
     """Improve a story based on review feedback. Returns improved story JSON."""
     from .story import STORY_SYSTEM_PROMPT_TEMPLATE, _get_duration_preset
 
@@ -108,7 +108,7 @@ def improve_narrative(story: dict, review: dict) -> dict:
         + "\n\nReturn the IMPROVED story as valid JSON. Keep what works, fix what doesn't."
     )
 
-    response = call_llm(system, user_prompt)
+    response = await call_llm(system, user_prompt)
     try:
         improved = extract_json(response)
         improved["category"] = story.get("category", "formula")

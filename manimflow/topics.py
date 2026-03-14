@@ -6,7 +6,7 @@ AND "visual demonstrability" are the highest-performing content.
 Also includes a curated library of proven viral math/physics topics.
 """
 
-from .llm import call_llm, extract_json
+from .agent import call_llm, extract_json
 
 
 # Curated topic library — topics proven to drive engagement
@@ -204,7 +204,7 @@ def get_suggested_topics(category: str | None = None, count: int = 5) -> list[di
     return topics[:count]
 
 
-def score_topic(topic: str) -> dict:
+async def score_topic(topic: str) -> dict:
     """Score a user-provided topic on the two key axes using LLM."""
     prompt = f"""Score this educational video topic on two axes (1-10 each):
 
@@ -225,7 +225,7 @@ TOPIC: {topic}
 Return JSON: {{"intuition_score": N, "visual_score": N, "combined": N, "suggested_category": "category_id", "hook_suggestion": "one-line hook"}}"""
 
     try:
-        response = call_llm("You are a content strategist for educational math/physics videos.", prompt)
+        response = await call_llm("You are a content strategist for educational math/physics videos.", prompt)
         return extract_json(response)
     except Exception:
         return {"intuition_score": 5, "visual_score": 5, "combined": 25, "suggested_category": "formula"}

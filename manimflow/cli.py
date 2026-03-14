@@ -1,6 +1,7 @@
 """CLI interface for ManimFlow."""
 
 import argparse
+import asyncio
 import sys
 
 from .pipeline import generate_video
@@ -113,7 +114,7 @@ Categories:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         args.output = f"output/{ts}"
 
-    result = generate_video(
+    result = asyncio.run(generate_video(
         topic=args.topic,
         output_dir=args.output,
         quality=args.quality,
@@ -124,7 +125,7 @@ Categories:
         max_quality_loops=args.max_quality_loops,
         preview=args.preview,
         verbose=not args.quiet,
-    )
+    ))
 
     if result["success"]:
         print(f"\n{'='*50}")

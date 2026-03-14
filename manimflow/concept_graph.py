@@ -8,7 +8,7 @@ ConceptNet relationship types.
 """
 
 from dataclasses import dataclass, field, asdict
-from .llm import call_llm, extract_json
+from .agent import call_llm, extract_json
 
 
 @dataclass
@@ -112,7 +112,7 @@ The teaching_order must be a valid topological sort: no concept appears before i
 Include 5-12 concepts (not too few, not too many for a single video)."""
 
 
-def build_concept_graph(topic: str, audience: str = "general") -> ConceptGraph:
+async def build_concept_graph(topic: str, audience: str = "general") -> ConceptGraph:
     """Build a concept graph from a topic description."""
     user_prompt = (
         f"Build a knowledge graph for this educational video topic:\n\n"
@@ -121,7 +121,7 @@ def build_concept_graph(topic: str, audience: str = "general") -> ConceptGraph:
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(GRAPH_PROMPT, user_prompt)
+    response = await call_llm(GRAPH_PROMPT, user_prompt)
     data = extract_json(response)
 
     # Build the graph

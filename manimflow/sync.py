@@ -20,7 +20,7 @@ import os
 import subprocess
 from dataclasses import dataclass, field
 
-from .llm import call_llm, extract_json
+from .agent import call_llm, extract_json
 
 
 @dataclass
@@ -204,7 +204,7 @@ def group_into_narration_blocks(timeline: list[TimelineSlot],
     return blocks
 
 
-def generate_synced_narration(blocks: list[dict], story: dict) -> list[dict]:
+async def generate_synced_narration(blocks: list[dict], story: dict) -> list[dict]:
     """Use LLM to write narration for each block, constrained by duration.
 
     Each block gets narration text sized to fit its duration at ~2 words/sec.
@@ -257,7 +257,7 @@ def generate_synced_narration(blocks: list[dict], story: dict) -> list[dict]:
     )
 
     try:
-        response = call_llm(
+        response = await call_llm(
             "You write concise educational narration that matches exact word count targets. "
             "Each sentence must be natural, clear, and match the visual description.",
             prompt,

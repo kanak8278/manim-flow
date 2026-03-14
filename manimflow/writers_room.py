@@ -8,7 +8,7 @@ Flow:
 """
 
 from dataclasses import dataclass, field
-from .llm import call_llm, extract_json
+from .agent import call_llm, extract_json
 from .domain_knowledge import get_storytelling_knowledge
 
 
@@ -90,7 +90,7 @@ Return JSON:
 }"""
 
 
-def explore_angles(topic: str, audience: str = "general") -> list[StoryAngle]:
+async def explore_angles(topic: str, audience: str = "general") -> list[StoryAngle]:
     """Generate multiple creative angles for a topic."""
     user_prompt = (
         f"Generate 3-4 creative story angles for this educational video:\n\n"
@@ -101,7 +101,7 @@ def explore_angles(topic: str, audience: str = "general") -> list[StoryAngle]:
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(EXPLORE_PROMPT, user_prompt)
+    response = await call_llm(EXPLORE_PROMPT, user_prompt)
     data = extract_json(response)
 
     angles = []
@@ -145,7 +145,7 @@ Return JSON:
 }"""
 
 
-def evaluate_angles(angles: list[StoryAngle], topic: str) -> dict:
+async def evaluate_angles(angles: list[StoryAngle], topic: str) -> dict:
     """Score and rank story angles."""
     angles_text = "\n\n".join(
         f"ANGLE: {a.id}\n"
@@ -164,7 +164,7 @@ def evaluate_angles(angles: list[StoryAngle], topic: str) -> dict:
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(EVALUATE_PROMPT, user_prompt)
+    response = await call_llm(EVALUATE_PROMPT, user_prompt)
     return extract_json(response)
 
 
@@ -201,7 +201,7 @@ Return JSON:
 }"""
 
 
-def draft_story(angle: StoryAngle, topic: str, duration: int = 120) -> dict:
+async def draft_story(angle: StoryAngle, topic: str, duration: int = 120) -> dict:
     """Write a complete story draft from a winning angle."""
     user_prompt = (
         f"Write a scene-by-scene story draft for this video:\n\n"
@@ -218,7 +218,7 @@ def draft_story(angle: StoryAngle, topic: str, duration: int = 120) -> dict:
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(DRAFT_PROMPT, user_prompt)
+    response = await call_llm(DRAFT_PROMPT, user_prompt)
     return extract_json(response)
 
 
@@ -261,7 +261,7 @@ Return JSON:
 }"""
 
 
-def director_review(story_draft: dict, angle: StoryAngle, topic: str) -> DirectorNotes:
+async def director_review(story_draft: dict, angle: StoryAngle, topic: str) -> DirectorNotes:
     """Get director feedback on a story draft."""
     scenes_text = "\n\n".join(
         f"SCENE {s.get('id', i+1)}: {s.get('name', '')}\n"
@@ -283,7 +283,7 @@ def director_review(story_draft: dict, angle: StoryAngle, topic: str) -> Directo
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(DIRECTOR_PROMPT, user_prompt)
+    response = await call_llm(DIRECTOR_PROMPT, user_prompt)
     data = extract_json(response)
 
     return DirectorNotes(
@@ -309,7 +309,7 @@ Keep what the director said works. Fix what they said doesn't.
 Return the COMPLETE revised story in the same JSON format as the original."""
 
 
-def revise_story(story_draft: dict, director_notes: DirectorNotes, angle: StoryAngle) -> dict:
+async def revise_story(story_draft: dict, director_notes: DirectorNotes, angle: StoryAngle) -> dict:
     """Revise a story based on director feedback."""
     fixes = "\n".join(f"  - {f}" for f in director_notes.specific_fixes)
     weaknesses = "\n".join(f"  - {w}" for w in director_notes.weaknesses)
@@ -327,7 +327,7 @@ def revise_story(story_draft: dict, director_notes: DirectorNotes, angle: StoryA
         f"Apply ALL fixes. Keep what works. Return complete revised story as JSON."
     )
 
-    response = call_llm(REVISE_PROMPT, user_prompt)
+    response = await call_llm(REVISE_PROMPT, user_prompt)
     return extract_json(response)
 
 
@@ -343,7 +343,7 @@ def _story_to_text(story: dict) -> str:
 
 # ─── ORCHESTRATOR: RUN THE FULL WRITERS ROOM ───
 
-def run_writers_room(
+async def run_writers_room(
     topic: str,
     audience: str = "general",
     duration: int = 120,
@@ -355,7 +355,7 @@ def run_writers_room(
 
     # Phase 1: Explore angles
     _log("\n--- Writers Room: Exploring angles ---")
-    angles = explore_angles(topic, audience)
+    angles = await explore_angles(topic, audience)
     for a in angles:
         _log(f"  [{a.id}] {a.title}")
         _log(f"    Hook: {a.hook[:80]}")
@@ -363,7 +363,7 @@ def run_writers_room(
 
     # Phase 2: Evaluate and pick
     _log("\n--- Writers Room: Evaluating angles ---")
-    evaluation = evaluate_angles(angles, topic)
+    evaluation = await evaluate_angles(angles, topic)
 
     winner_id = evaluation.get("winner", angles[0].id if angles else "")
     winner = next((a for a in angles if a.id == winner_id), angles[0] if angles else None)
@@ -379,7 +379,7 @@ def run_writers_room(
 
     # Phase 3: Draft story
     _log("\n--- Writers Room: Drafting story ---")
-    story_draft = draft_story(winner, topic, duration)
+    story_draft = await draft_story(winner, topic, duration)
     _log(f"  Title: {story_draft.get('title', '')}")
     _log(f"  Scenes: {len(story_draft.get('scenes', []))}")
 
@@ -387,7 +387,7 @@ def run_writers_room(
     revision = 0
     while revision < max_revisions:
         _log(f"\n--- Writers Room: Director review (round {revision + 1}) ---")
-        notes = director_review(story_draft, winner, topic)
+        notes = await director_review(story_draft, winner, topic)
 
         _log(f"  Score: {notes.score}/10 — {notes.overall_verdict}")
         for s in notes.strengths[:3]:
@@ -407,12 +407,12 @@ def run_writers_room(
             runner = next((a for a in angles if a.id == runner_id), None)
             if runner:
                 winner = runner
-                story_draft = draft_story(winner, topic, duration)
+                story_draft = await draft_story(winner, topic, duration)
             revision += 1
             continue
 
         _log(f"  Revising based on director notes...")
-        revised = revise_story(story_draft, notes, winner)
+        revised = await revise_story(story_draft, notes, winner)
 
         # Validate revision — keep original if revision is worse
         revised_scenes = revised.get("scenes", [])

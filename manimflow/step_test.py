@@ -10,6 +10,7 @@ Each step loads the previous step's output, runs the current step,
 saves the result, and benchmarks it.
 """
 
+import asyncio
 import json
 import os
 import sys
@@ -26,14 +27,14 @@ from .reviewers.design_reviewer import DesignReviewer
 from .reviewers.base import print_review
 
 
-def test_story(topic: str, output_dir: str = "output/step_test"):
+async def test_story(topic: str, output_dir: str = "output/step_test"):
     """Test just the writers room — generate and benchmark a story."""
     os.makedirs(output_dir, exist_ok=True)
     print(f"\n=== STEP TEST: Story Generation ===")
     print(f"Topic: {topic}")
 
     start = time.time()
-    approved = run_writers_room(topic=topic, duration=120, max_revisions=2, verbose=True)
+    approved = await run_writers_room(topic=topic, duration=120, max_revisions=2, verbose=True)
     elapsed = time.time() - start
 
     # Save
@@ -49,7 +50,7 @@ def test_story(topic: str, output_dir: str = "output/step_test"):
 
     # Benchmark
     reviewer = StoryReviewer()
-    result = reviewer.review(artifact=story, context={"topic": topic})
+    result = await reviewer.review(artifact=story, context={"topic": topic})
     print_review(result)
 
     print(f"\n  Time: {elapsed:.0f}s")
@@ -58,7 +59,7 @@ def test_story(topic: str, output_dir: str = "output/step_test"):
     return result.score
 
 
-def test_design(story_path: str, output_dir: str = None):
+async def test_design(story_path: str, output_dir: str = None):
     """Test just the design system — generate and benchmark from existing story."""
     with open(story_path) as f:
         story = json.load(f)
@@ -70,7 +71,7 @@ def test_design(story_path: str, output_dir: str = None):
     print(f"Story: {story.get('title', '?')}")
 
     start = time.time()
-    design = generate_design_system(story, angle_title=story.get("title", ""))
+    design = await generate_design_system(story, angle_title=story.get("title", ""))
     elapsed = time.time() - start
 
     # Save
@@ -80,7 +81,7 @@ def test_design(story_path: str, output_dir: str = None):
 
     # Benchmark
     reviewer = DesignReviewer()
-    result = reviewer.review(
+    result = await reviewer.review(
         artifact=design.to_dict(),
         context={"topic": story.get("title", ""), "title": story.get("title", "")},
     )
@@ -92,7 +93,7 @@ def test_design(story_path: str, output_dir: str = None):
     return result.score
 
 
-def test_code(story_path: str, output_dir: str = None):
+async def test_code(story_path: str, output_dir: str = None):
     """Test just code generation — generate, sanitize, and analyze."""
     with open(story_path) as f:
         story = json.load(f)
@@ -104,7 +105,7 @@ def test_code(story_path: str, output_dir: str = None):
     print(f"Story: {story.get('title', '?')}")
 
     start = time.time()
-    code = generate_manim_code(story)
+    code = await generate_manim_code(story)
 
     # Sanitize
     code, fixes = sanitize_code(code)
@@ -185,11 +186,11 @@ def main():
     arg = sys.argv[2]
 
     if step == "story":
-        test_story(arg)
+        asyncio.run(test_story(arg))
     elif step == "design":
-        test_design(arg)
+        asyncio.run(test_design(arg))
     elif step == "code":
-        test_code(arg)
+        asyncio.run(test_code(arg))
     elif step == "render":
         test_render(arg)
     else:

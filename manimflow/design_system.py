@@ -7,7 +7,7 @@ The code generator then just implements this spec — no creative decisions left
 """
 
 from dataclasses import dataclass, field, asdict
-from .llm import call_llm, extract_json
+from .agent import call_llm, extract_json
 
 
 @dataclass
@@ -147,7 +147,7 @@ Return JSON:
 }"""
 
 
-def generate_design_system(story: dict, angle_title: str = "", angle_mood: str = "") -> DesignSystem:
+async def generate_design_system(story: dict, angle_title: str = "", angle_mood: str = "") -> DesignSystem:
     """Generate a complete design system for a video."""
     scenes_text = ""
     for i, scene in enumerate(story.get("scenes", [])):
@@ -170,7 +170,7 @@ def generate_design_system(story: dict, angle_title: str = "", angle_mood: str =
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(DESIGN_PROMPT, user_prompt)
+    response = await call_llm(DESIGN_PROMPT, user_prompt)
     data = extract_json(response)
 
     return DesignSystem(

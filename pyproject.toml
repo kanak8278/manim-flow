@@ -13,6 +13,7 @@ dependencies = [
     "openai-whisper>=20250625",
     "setuptools<81",
     "stable-ts>=2.19.1",
+    "tenacity>=9.1.4",
     "truststore>=0.10.4",
 ]
 

@@ -8,7 +8,8 @@ The LLM receives the code with line numbers and can specify exact edits.
 
 import re
 import json
-from .llm import call_llm
+from .agent import Agent, call_llm
+from .knowledge.tool import TOOLS, get_knowledge_system_context
 
 
 EDITOR_SYSTEM_PROMPT = r"""You are a Manim code editor. You fix bugs by making SURGICAL EDITS — not by rewriting the entire file.
@@ -48,7 +49,7 @@ COMMON FIXES:
 """
 
 
-def surgical_fix(code: str, issues: str) -> str:
+async def surgical_fix(code: str, issues: str) -> str:
     """Fix code with targeted edits instead of full rewrite."""
     # Number the lines for the LLM
     lines = code.split("\n")
@@ -61,7 +62,10 @@ def surgical_fix(code: str, issues: str) -> str:
         f"Return ONLY a JSON array of edits."
     )
 
-    response = call_llm(EDITOR_SYSTEM_PROMPT, user_prompt)
+    system = EDITOR_SYSTEM_PROMPT + "\n\n" + get_knowledge_system_context()
+    agent = Agent(system_prompt=system, tools=TOOLS)
+    agent.add_user_message(user_prompt)
+    response = await agent.run(max_tool_rounds=2)
 
     # Parse the edit instructions
     edits = _parse_edits(response)

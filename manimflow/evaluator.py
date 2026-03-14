@@ -6,7 +6,7 @@ import json
 import base64
 from pathlib import Path
 
-from .llm import call_llm
+from .agent import call_llm
 
 
 def extract_keyframes(video_path: str, output_dir: str, num_frames: int = 8) -> list[str]:
@@ -50,7 +50,7 @@ def extract_keyframes(video_path: str, output_dir: str, num_frames: int = 8) -> 
     return frame_paths
 
 
-def evaluate_frames_with_code(code: str, story: dict) -> dict:
+async def evaluate_frames_with_code(code: str, story: dict) -> dict:
     """Evaluate quality by analyzing the code and story (no vision needed)."""
     evaluation_prompt = """You are a video quality evaluator for educational math/physics animations.
 
@@ -100,7 +100,7 @@ MANIM CODE:
 
 Return ONLY valid JSON evaluation."""
 
-    response = call_llm(evaluation_prompt, user_prompt)
+    response = await call_llm(evaluation_prompt, user_prompt)
 
     # Extract JSON from response
     try:
@@ -132,7 +132,7 @@ Return ONLY valid JSON evaluation."""
     }
 
 
-def evaluate_video_frames(video_path: str, story: dict, output_dir: str) -> dict:
+async def evaluate_video_frames(video_path: str, story: dict, output_dir: str) -> dict:
     """Extract frames from rendered video and evaluate with Claude Vision.
 
     This is Approach 2: actually LOOK at the video to catch visual issues
@@ -223,7 +223,7 @@ Return JSON:
 }}"""
 
     try:
-        response = call_llm(eval_system, eval_prompt, images=frame_paths)
+        response = await call_llm(eval_system, eval_prompt, images=frame_paths)
         return _parse_json_response(response)
     except Exception as e:
         print(f"  Vision evaluation failed: {e}")

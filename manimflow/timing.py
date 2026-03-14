@@ -83,13 +83,13 @@ def get_video_duration(video_path: str) -> float:
     return 0.0
 
 
-def rewrite_narration_for_timing(story: dict, scene_timings: list[dict]) -> dict:
+async def rewrite_narration_for_timing(story: dict, scene_timings: list[dict]) -> dict:
     """Update story narration to fit actual video scene durations.
 
     Uses LLM to rewrite narration text so TTS output matches each scene's length.
     Rough rule: ~150 words per minute for clear narration = 2.5 words/second.
     """
-    from .llm import call_llm, extract_json
+    from .agent import call_llm, extract_json
 
     WORDS_PER_SECOND = 2.0  # Conservative — ensures narration fits within scene duration
 
@@ -137,7 +137,7 @@ def rewrite_narration_for_timing(story: dict, scene_timings: list[dict]) -> dict
     )
 
     try:
-        response = call_llm(
+        response = await call_llm(
             "You rewrite educational narration to fit specific time budgets. "
             "Keep the same teaching content and tone.",
             prompt,

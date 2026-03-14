@@ -5,13 +5,14 @@ Generates code for each topic, renders, extracts frames, scores.
 Saves results for comparison across iterations.
 """
 
+import asyncio
 import json
 import os
 import time
 import subprocess
 from datetime import datetime
 
-from .codegen import generate_manim_code
+from .codegen import generate_manim_code, fix_manim_code
 from .code_sanitizer import sanitize_code
 from .spatial_analyzer import analyze_scene
 from .renderer import render_scene, validate_code
@@ -37,7 +38,7 @@ BENCHMARK_TOPICS = [
 ]
 
 
-def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_output"):
+async def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_output"):
     """Run code generation + spatial analysis benchmark for one or all topics."""
     topics = BENCHMARK_TOPICS
     if topic_id:
@@ -97,7 +98,7 @@ def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_outpu
         # Generate code
         start = time.time()
         try:
-            code = generate_manim_code(story)
+            code = await generate_manim_code(story)
             code, fixes = sanitize_code(code)
             gen_time = time.time() - start
         except Exception as e:
@@ -134,8 +135,7 @@ def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_outpu
                 rendered = True
                 break
             # Fix and retry
-            from .codegen import fix_manim_code
-            code = fix_manim_code(code, render_result["error"])
+            code = await fix_manim_code(code, render_result["error"])
             code, _ = sanitize_code(code)
             with open(code_path, "w") as f:
                 f.write(code)
@@ -242,7 +242,7 @@ def run_code_benchmark(topic_id: str = None, output_base: str = "benchmark_outpu
 def main():
     import sys
     topic_id = sys.argv[1] if len(sys.argv) > 1 else None
-    run_code_benchmark(topic_id)
+    asyncio.run(run_code_benchmark(topic_id))
 
 
 if __name__ == "__main__":

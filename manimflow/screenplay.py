@@ -13,8 +13,9 @@ Inspired by:
 """
 
 from dataclasses import dataclass, field
-from .llm import call_llm, extract_json
+from .agent import Agent, call_llm, extract_json
 from .domain_knowledge import get_full_design_knowledge, VISUAL_VOCABULARY
+from .knowledge.tool import TOOLS, get_knowledge_system_context
 
 
 @dataclass
@@ -109,7 +110,7 @@ Return JSON:
 }"""
 
 
-def write_screenplay(story: dict, topic: str) -> Screenplay:
+async def write_screenplay(story: dict, topic: str) -> Screenplay:
     """Convert an approved story into a detailed visual screenplay."""
     scenes_text = ""
     for i, scene in enumerate(story.get("scenes", [])):
@@ -135,7 +136,10 @@ def write_screenplay(story: dict, topic: str) -> Screenplay:
         f"Return ONLY valid JSON."
     )
 
-    response = call_llm(SCREENPLAY_PROMPT, user_prompt)
+    system = SCREENPLAY_PROMPT + "\n\n" + get_knowledge_system_context()
+    agent = Agent(system_prompt=system, tools=TOOLS)
+    agent.add_user_message(user_prompt)
+    response = await agent.run(max_tool_rounds=2)
     data = extract_json(response)
 
     shots = []

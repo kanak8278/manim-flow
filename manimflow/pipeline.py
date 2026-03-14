@@ -27,7 +27,7 @@ from .reviewers.design_reviewer import DesignReviewer
 from .reviewers.base import print_review
 
 
-def generate_video(
+async def generate_video(
     topic: str,
     output_dir: str = "output",
     quality: str = "h",
@@ -68,7 +68,7 @@ def generate_video(
     # === Step 1: Writers Room (explore angles → draft → director review → revise) ===
     _log("\n--- Step 1: Writers Room ---")
 
-    approved = run_writers_room(
+    approved = await run_writers_room(
         topic=topic,
         audience="general",
         duration=duration,
@@ -101,7 +101,7 @@ def generate_video(
 
     # === Step 1.5: Design System ===
     _log("\n--- Step 1.5: Generating design system ---")
-    design = generate_design_system(
+    design = await generate_design_system(
         story,
         angle_title=approved.angle.title,
         angle_mood=approved.angle.emotional_arc,
@@ -117,7 +117,7 @@ def generate_video(
 
     # Review design — regenerate if below threshold
     design_reviewer = DesignReviewer()
-    design_review = design_reviewer.review(
+    design_review = await design_reviewer.review(
         artifact=design.to_dict(),
         context={"topic": topic, "title": story.get("title", "")},
     )
@@ -129,7 +129,7 @@ def generate_video(
         # Feed reviewer fixes back to design generator
         feedback = "\n".join(design_review.fixes[:5])
         story["_design_feedback"] = feedback
-        design = generate_design_system(
+        design = await generate_design_system(
             story,
             angle_title=approved.angle.title,
             angle_mood=approved.angle.emotional_arc + f"\n\nFix these design issues:\n{feedback}",
@@ -142,7 +142,7 @@ def generate_video(
 
     # === Step 1.7: Screenplay (detailed shot-by-shot visual script) ===
     _log("\n--- Step 1.7: Writing screenplay ---")
-    sp = write_screenplay(story, topic)
+    sp = await write_screenplay(story, topic)
     if verbose:
         print_screenplay(sp)
 
@@ -164,7 +164,7 @@ def generate_video(
     # === Step 2: Generate Manim Code ===
     _log("\n--- Step 2: Generating Manim code ---")
 
-    code = generate_manim_code(story)
+    code = await generate_manim_code(story)
     code_path = os.path.join(output_dir, "scene.py")
     with open(code_path, "w") as f:
         f.write(code)
@@ -193,7 +193,7 @@ def generate_video(
     if not static["pass"]:
         _log("  Static checks found issues, attempting fix...")
         issues_text = "\n".join(static["issues"] + static["warnings"])
-        code = fix_manim_code(code, f"Static analysis issues:\n{issues_text}")
+        code = await fix_manim_code(code, f"Static analysis issues:\n{issues_text}")
         with open(code_path, "w") as f:
             f.write(code)
 
@@ -212,14 +212,14 @@ def generate_video(
         _log(f"  {len(spatial_issues)} issues, {len(spatial_warnings)} warnings — fixing...")
         # Cap issues sent to LLM — it only needs a summary, not 800 lines
         fix_prompt = _build_spatial_fix_prompt(all_spatial[:30], spatial.get("elements", {}))
-        code = fix_manim_code(code, fix_prompt)
+        code = await fix_manim_code(code, fix_prompt)
         with open(code_path, "w") as f:
             f.write(code)
 
     # === Step 3: Render with Auto-Fix Loop ===
     _log("\n--- Step 3/4: Rendering video ---")
 
-    render_result = _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+    render_result = await _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
 
     if not render_result["success"]:
         return {
@@ -251,7 +251,7 @@ def generate_video(
         vision_feedback = []
         if video_path:
             _log("  Running frame-based vision analysis...")
-            frame_eval = evaluate_video_frames(video_path, story, output_dir)
+            frame_eval = await evaluate_video_frames(video_path, story, output_dir)
             visual_score = frame_eval.get("overall_visual_score", None)
             visual_issues = frame_eval.get("visual_issues", [])
             semantic_issues = frame_eval.get("semantic_issues", [])
@@ -266,7 +266,7 @@ def generate_video(
                 vision_feedback = visual_issues + [f"SEMANTIC: {s}" for s in semantic_issues]
 
         # Step 4b: Code-based evaluation
-        evaluation = evaluate_frames_with_code(code, story)
+        evaluation = await evaluate_frames_with_code(code, story)
 
         if verbose:
             print_evaluation(evaluation)
@@ -323,19 +323,19 @@ def generate_video(
             # Use surgical editor (targeted edits) instead of full rewrite
             # This prevents re-introducing bugs the sanitizer already fixed
             _log("  Applying surgical fixes...")
-            new_code = surgical_fix(code, feedback)
+            new_code = await surgical_fix(code, feedback)
             if new_code != code:
                 code = new_code
             else:
                 # Surgical fix didn't change anything — fall back to full rewrite
                 _log("  Surgical fix had no effect, trying full rewrite...")
-                code = fix_manim_code(code, feedback)
+                code = await fix_manim_code(code, feedback)
             code, _ = sanitize_code(code)
             with open(code_path, "w") as f:
                 f.write(code)
 
             # Re-render with improved code
-            render_result = _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+            render_result = await _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
             if render_result["success"]:
                 code = render_result["code"]
                 video_path = render_result["video_path"]
@@ -420,7 +420,7 @@ def generate_video(
     }
 
 
-def _render_with_fixes(
+async def _render_with_fixes(
     code: str,
     output_dir: str,
     quality: str,
@@ -432,7 +432,7 @@ def _render_with_fixes(
     syntax = validate_code(code)
     if not syntax["valid"]:
         _log(f"  Syntax error, fixing...")
-        code = fix_manim_code(code, syntax["error"])
+        code = await fix_manim_code(code, syntax["error"])
 
     attempt = 0
     last_error = None
@@ -459,7 +459,7 @@ def _render_with_fixes(
 
             if attempt < max_attempts:
                 _log(f"  Auto-fixing...")
-                code = fix_manim_code(code, last_error)
+                code = await fix_manim_code(code, last_error)
                 code, _ = sanitize_code(code)  # Re-sanitize after fix
 
                 code_path = os.path.join(output_dir, "scene.py")

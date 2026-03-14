@@ -1,7 +1,7 @@
 """Base reviewer class — all domain-specific reviewers extend this."""
 
 from dataclasses import dataclass, field
-from ..llm import call_llm, extract_json
+from ..agent import call_llm, extract_json
 
 
 @dataclass
@@ -22,12 +22,12 @@ class BaseReviewer:
     stage_name: str = "base"
     domain_knowledge: str = ""  # Injected expertise from research
 
-    def review(self, artifact: dict, context: dict = None) -> ReviewResult:
+    async def review(self, artifact: dict, context: dict = None) -> ReviewResult:
         """Review an artifact from this pipeline stage."""
         system_prompt = self._build_system_prompt()
         user_prompt = self._build_user_prompt(artifact, context or {})
 
-        response = call_llm(system_prompt, user_prompt)
+        response = await call_llm(system_prompt, user_prompt)
         data = extract_json(response)
 
         return ReviewResult(
