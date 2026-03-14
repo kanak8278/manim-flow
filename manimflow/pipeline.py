@@ -478,6 +478,26 @@ def _build_spatial_fix_prompt(issues: list[str], elements: dict) -> str:
         lines.append("  - Break long text into multiple lines")
         lines.append("  - Keep all .move_to() positions within y=[-3.5, 3.5]\n")
 
+    # Screen usage issues
+    underutilized = [i for i in issues if "underutil" in i.lower()]
+    oversized = [i for i in issues if "too large" in i.lower() or "covers" in i.lower()]
+
+    if underutilized:
+        lines.append("## SCREEN UNDERUTILIZED (too much empty space):")
+        lines.append("FIX: Elements are too small. Increase sizes:")
+        lines.append("  - RoundedRectangle: width=3.5-4.5, height=1.5-2.0")
+        lines.append("  - Circle: radius=1.5-2.0")
+        lines.append("  - Text: font_size=28-36 (not 20-24)")
+        lines.append("  - Use VGroup().arrange() to spread elements across the screen")
+        lines.append("  - Elements should cover at least 30% of the visible area\n")
+
+    if oversized:
+        lines.append("## OVERSIZED SHAPES (taking up too much screen):")
+        for o in oversized[:3]:
+            lines.append(f"  - {o}")
+        lines.append("FIX: Maximum shape dimensions: width=5, height=3.")
+        lines.append("  Never fill the entire screen with one shape.\n")
+
     if accumulation:
         lines.append("## TEXT ACCUMULATION (elements never removed):")
         for a in accumulation[:5]:

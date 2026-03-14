@@ -157,6 +157,9 @@ def analyze_scene(code: str) -> dict:
             _check_overlaps(on_screen, elements, current_time, issues, warnings, i,
                           reported_overlap_pairs)
 
+            # Check screen usage (too empty? too full? oversized shapes?)
+            _check_screen_usage(elements, on_screen, issues, warnings)
+
         # --- Track wait() ---
         wait_match = re.search(r"self\.wait\(([^)]*)\)", stripped)
         if wait_match:
@@ -471,7 +474,6 @@ def _is_intentional_overlap(name1: str, elem1, name2: str, elem2,
 
 def _check_empty_screen(timeline: list, total_time: float, warnings: list):
     """Detect periods where nothing is on screen."""
-    # Simple heuristic: consecutive removes without adds
     last_event = None
     for event in timeline:
         if event["event"] == "remove" and last_event and last_event["event"] == "remove":
@@ -482,6 +484,34 @@ def _check_empty_screen(timeline: list, total_time: float, warnings: list):
                     f"{event['time']:.1f}s ({gap:.1f}s gap)"
                 )
         last_event = event
+
+
+def _check_screen_usage(elements: dict, on_screen: set, issues: list, warnings: list):
+    """Check if elements use the screen well — not too empty, not too crowded."""
+    screen_elements = [elements[n] for n in on_screen if n in elements]
+    if not screen_elements:
+        return
+
+    # Check 1: Are elements too small relative to screen?
+    # Screen area is ~14 * 8 = 112 sq units
+    SCREEN_AREA = 112.0
+    total_element_area = sum(
+        max(0, e.bbox.width * e.bbox.height) for e in screen_elements
+    )
+    usage_ratio = total_element_area / SCREEN_AREA
+    if usage_ratio < 0.1 and len(screen_elements) > 0:
+        msg = f"Screen underutilized: elements cover only {usage_ratio:.0%} of screen. Make elements larger."
+        if msg not in warnings:  # Deduplicate
+            warnings.append(msg)
+
+    # Check 2: Is any single shape taking up most of the screen?
+    for e in screen_elements:
+        area = e.bbox.width * e.bbox.height
+        if area > SCREEN_AREA * 0.5 and e.kind in ("circle", "rectangle"):
+            msg = (f"'{e.name}' ({e.kind}) covers {area/SCREEN_AREA:.0%} of screen — too large. "
+                   f"Max recommended: 60%.")
+            if msg not in issues:
+                issues.append(msg)
 
 
 def _estimate_text_bbox(content: str, font_size: float, is_math: bool = False) -> BBox:
