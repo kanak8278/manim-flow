@@ -57,4 +57,5 @@ output/
 benchmark_output/
 videos/
 manimflow/knowledge/scenes/
-manimflow/knowledge/INSTRUCTIONS.mdprojects/
+manimflow/knowledge/INSTRUCTIONS.md
+projects/

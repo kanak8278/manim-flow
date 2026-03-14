@@ -104,7 +104,7 @@ class Agent:
         tools: list[dict] | None = None,
         model: str | None = None,
         provider: str | None = None,
-        max_tokens: int = 8192,
+        max_tokens: int = 16384,
         enable_caching: bool = True,
         cache_ttl: str = "5m",
         enable_thinking: bool = True,
@@ -472,16 +472,6 @@ class Agent:
                         logger.error(f"Tool execution error: {e}")
                         result_text = f"Error executing {tool_name}: {e}"
                         print(f"    [ERROR] {e}")
-
-                    # Log tool call to Langfuse
-                    parent = tracing.current_span()
-                    if parent is not None:
-                        parent.span(
-                            name=f"tool_{tool_name}",
-                            input=tool_input,
-                            output=result_text[:500] if len(result_text) > 500 else result_text,
-                            metadata={"round": round_num},
-                        )
 
                     tool_results.append({
                         "type": "tool_result",
