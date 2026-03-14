@@ -225,6 +225,15 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
                 if line != original:
                     fixes.append(f"Line {i+1}: Replaced '{bad_pos}' with '{good_pos}'")
 
+        # Replace GTTSService with EdgeTTSService (better neural voices)
+        if "GTTSService" in line:
+            old_line = line
+            line = line.replace("GTTSService", "EdgeTTSService")
+            line = line.replace("from manim_voiceover.services.gtts import EdgeTTSService",
+                              "from manimflow.edge_tts_service import EdgeTTSService")
+            if line != old_line:
+                fixes.append(f"Line {i+1}: Replaced GTTSService with EdgeTTSService (better voice)")
+
         # Fix unguarded self.mobjects cleanup (crashes when empty)
         if "for m in self.mobjects]" in line and "if self.mobjects" not in line:
             old_line = line

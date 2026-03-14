@@ -11,12 +11,12 @@ RULES (follow exactly — violations = broken video):
 1. Imports:
    from manim import *
    from manim_voiceover import VoiceoverScene
-   from manim_voiceover.services.gtts import GTTSService
+   from manimflow.edge_tts_service import EdgeTTSService
    import numpy as np
 
 2. Class: `GeneratedScene(VoiceoverScene)` with `def construct(self):`
 3. First line in construct:
-   self.set_speech_service(GTTSService(transcription_model="base"))
+   self.set_speech_service(EdgeTTSService(transcription_model="base"))
 4. Background: `self.camera.background_color = BLACK`
 5. NO MathTex. Use Text() for everything including math.
 6. rate_func: ONLY use smooth, linear, rush_into, rush_from, there_and_back
@@ -124,7 +124,7 @@ def generate_manim_code(story: dict) -> str:
     user_prompt += (
         "\n\nSCENE NARRATION TO USE:\n" + "\n".join(scene_hints)
         + "\n\nCRITICAL:"
-        "\n- Use VoiceoverScene with GTTSService(transcription_model='base')"
+        "\n- Use VoiceoverScene with EdgeTTSService(transcription_model='base')"
         "\n- Wrap each scene in `with self.voiceover(text=...)` with bookmark tags"
         "\n- Narration text comes from the story's 'narration' field for each scene"
         "\n- Add <bookmark mark='X'/> tags at key animation trigger points"
