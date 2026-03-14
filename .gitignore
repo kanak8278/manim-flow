@@ -53,4 +53,4 @@ Thumbs.db
 output/
 
 # Environment variables
-.env
+.envbenchmark_output/
