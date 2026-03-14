@@ -15,6 +15,7 @@ def render_scene(
     """Render Manim code to video."""
     os.makedirs(output_dir, exist_ok=True)
 
+    output_dir = os.path.abspath(output_dir)
     temp_file = os.path.join(output_dir, "scene.py")
     with open(temp_file, "w") as f:
         f.write(code)
