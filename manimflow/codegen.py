@@ -80,11 +80,42 @@ self.play(FadeOut(title), FadeOut(circle), run_time=1)
 - Long text (>30 chars): font_size 24 or break into lines
 - ASCII only — no emojis, bullets, special chars
 
-## QUALITY RULES
-- EVERY scene needs shapes/curves/arrows, not just text
-- Use Transform() for equation progression (at least 3 per video)
-- Use Indicate() for emphasis (at least 2 per video)
-- End with dramatic final scene
+## VISUAL DESIGN (THE MOST IMPORTANT RULES)
+
+RULE 1: Every shape must MEAN something. No decorative shapes.
+  BAD: Circle(color=GREEN) next to Rectangle(color=RED) — random shapes with no meaning
+  GOOD: Rectangle labeled "District Court" with smaller rectangles labeled "Traffic", "Property" inside it
+  The viewer must know what each shape represents WITHOUT reading the code.
+
+RULE 2: Use LABELED DIAGRAMS, not abstract shapes.
+  For any non-math topic, the best visuals are:
+  - Labeled rectangles with text inside (like org charts, flowcharts)
+  - Arrows showing flow/hierarchy/progression
+  - Stacked/nested boxes showing containment/hierarchy
+  - Annotated diagrams with Brace() and labels
+  NOT random circles, triangles, and rectangles scattered on screen.
+
+RULE 3: Hierarchy = vertical position. More important = higher.
+  Supreme Court at UP*2, High Court at ORIGIN, District Court at DOWN*2.
+  NOT random placement.
+
+RULE 4: Use 3Blue1Brown visual patterns:
+  - Clean labeled boxes with clear text inside
+  - Arrows connecting related concepts
+  - Progressive reveal (show one thing, explain it, then add the next)
+  - Color = identity (same concept = same color throughout)
+  - White text on dark backgrounds for readability
+  - VGroup().arrange() for clean, aligned layouts
+
+RULE 5: For non-math topics (law, history, systems):
+  - Use rectangles as "cards" — each card is a concept with a label
+  - Use arrows for relationships between cards
+  - Use color to group related concepts
+  - Use size to show importance
+  - DON'T use circles/triangles to represent real-world objects
+  - DO use text-labeled rectangles that clearly state what they represent
+
+RULE 6: Transform() for progression, Indicate() for emphasis, end with dramatic reveal
 """
 
 CODEGEN_SYSTEM_PROMPT = (
