@@ -111,10 +111,16 @@ def test_code(story_path: str, output_dir: str = None):
     if fixes:
         print(f"  Sanitized {len(fixes)} issues")
 
+    # Save code BEFORE validation (for debugging)
+    code_path = os.path.join(output_dir, "scene.py")
+    with open(code_path, "w") as f:
+        f.write(code)
+
     # Validate syntax
     syntax = validate_code(code)
     if not syntax["valid"]:
         print(f"  SYNTAX ERROR: {syntax['error']}")
+        print(f"  Saved (broken): {code_path}")
         return 0
 
     # Spatial analysis
@@ -122,11 +128,6 @@ def test_code(story_path: str, output_dir: str = None):
     print_spatial_analysis(spatial)
 
     elapsed = time.time() - start
-
-    # Save
-    code_path = os.path.join(output_dir, "scene.py")
-    with open(code_path, "w") as f:
-        f.write(code)
 
     accum = sum(1 for w in spatial["warnings"] if "never FadeOut" in w)
     overlaps = len(spatial["issues"])

@@ -271,17 +271,23 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
                         removed_chars = set(c for c in text_content if ord(c) >= 128)
                         fixes.append(f"Line {i+1}: Removed non-ASCII chars {removed_chars} from Text()")
 
-    # Fix Cross() — renders as ugly grey box
+    # Fix Cross() — renders as ugly grey box. Replace with a red Line strike-through.
     for i, line in enumerate(new_lines):
-        if "Cross(" in line and "cross" not in line.lower().split("=")[0] if "=" in line else True:
-            # Check if it's actually the Cross mobject
-            if re.search(r'\bCross\(', line):
-                original = line
-                # Replace Cross(obj) with two diagonal Lines
-                line = line.replace("Cross(", "# Cross removed — use Line() strike-through instead # Cross(")
-                if line != original:
-                    fixes.append(f"Line {i+1}: Commented out Cross() (renders poorly)")
-                    new_lines[i] = line
+        if re.search(r'\bCross\(', line):
+            original = line
+            indent = line[:len(line) - len(line.lstrip())]
+            # Extract what Cross is being assigned to
+            assign_match = re.match(r'(\s*\w+\s*=\s*)Cross\((\w+)', line)
+            if assign_match:
+                var_prefix = assign_match.group(1)
+                target = assign_match.group(2)
+                line = (f"{var_prefix}Line({target}.get_corner(UL), {target}.get_corner(DR), "
+                        f"color=RED, stroke_width=4)")
+            else:
+                line = indent + "pass  # Cross() removed (renders as grey box)"
+            if line != original:
+                fixes.append(f"Line {i+1}: Replaced Cross() with Line strike-through")
+                new_lines[i] = line
 
     # Auto-inject FadeOut between scene sections
     # Detect scene boundaries (comments like "# === SCENE" or "# Scene N" or large gaps)
