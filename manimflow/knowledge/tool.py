@@ -139,22 +139,29 @@ def _execute_search(params: dict) -> str:
 
 # ─── System prompt context ─────────────────────────────────────────────
 
-def get_knowledge_system_context() -> str:
-    """Return context to append to system prompts when the tool is available.
-
-    This tells the LLM what the knowledge base contains and how to use it
-    effectively. Includes vocabulary hints so the LLM knows what terms
-    to use in structured filters.
-    """
-    ks = get_search()
-    stats = ks.stats()
-
+def _get_vocab_block() -> str:
+    """Get vocabulary hints for structured filters."""
     from .vocabulary import (
         DOMAINS, ELEMENTS, ANIMATIONS, LAYOUTS, TECHNIQUES, VISUAL_PURPOSE,
     )
 
     def sample(s, n=20):
         return ", ".join(sorted(s)[:n])
+
+    return (
+        f"**domain**: {sample(DOMAINS)}\n"
+        f"**elements**: {sample(ELEMENTS)}\n"
+        f"**animations**: {sample(ANIMATIONS)}\n"
+        f"**layouts**: {sample(LAYOUTS)}\n"
+        f"**techniques**: {sample(TECHNIQUES)}\n"
+        f"**purpose**: {sample(VISUAL_PURPOSE)}"
+    )
+
+
+def get_knowledge_system_context() -> str:
+    """Knowledge context for codegen — search once, get patterns."""
+    ks = get_search()
+    stats = ks.stats()
 
     return f"""## Knowledge Base
 
@@ -163,7 +170,6 @@ and {stats['total_patterns']} tested code patterns from production channels.
 
 Search ONCE before writing code. One well-crafted query is better than multiple vague ones.
 Look for:
-- How similar visualizations were built
 - Working code patterns for the technique you need
 - Layout/composition that actually renders correctly
 
@@ -171,12 +177,39 @@ After searching, write your response. Do NOT search again unless the first searc
 
 ### Vocabulary for structured filters
 
-**domain**: {sample(DOMAINS)}
-**elements**: {sample(ELEMENTS)}
-**animations**: {sample(ANIMATIONS)}
-**layouts**: {sample(LAYOUTS)}
-**techniques**: {sample(TECHNIQUES)}
-**purpose**: {sample(VISUAL_PURPOSE)}
+{_get_vocab_block()}
+
+Use these exact terms in the structured filter arrays. Combine with free text query for best results.
+"""
+
+
+def get_knowledge_context_screenplay() -> str:
+    """Knowledge context for screenplay — multiple targeted searches encouraged."""
+    ks = get_search()
+    stats = ks.stats()
+
+    return f"""## Knowledge Base
+
+You have a `search_knowledge` tool with {stats['total_docs']} real Manim video examples
+and {stats['total_patterns']} tested code patterns from production channels.
+
+Search for SPECIFIC things — one technique or one visual pattern per query. Examples of good queries:
+- "number line with converging dots approaching a limit"
+- "card comparison layout side by side with arrows"
+- "transform equation step by step algebraic manipulation"
+- "progressive disclosure build up diagram piece by piece"
+
+Search as many times as you need. Each query should be NARROW and SPECIFIC.
+Broad queries like "math animation" return noise. Instead search for the exact visual
+technique you're trying to specify.
+
+Think about what you need, search for it, examine the results, then search for the next
+thing you need. Use results to inform your specifications — real examples show what
+positions, sizes, and animation timings actually work.
+
+### Vocabulary for structured filters
+
+{_get_vocab_block()}
 
 Use these exact terms in the structured filter arrays. Combine with free text query for best results.
 """

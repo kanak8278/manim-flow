@@ -107,7 +107,7 @@ class Agent:
         max_tokens: int = 8192,
         enable_caching: bool = True,
         cache_ttl: str = "5m",
-        enable_thinking: bool = False,
+        enable_thinking: bool = True,
         thinking_budget: int = 10000,
         enable_1m_context: bool = False,
     ):
