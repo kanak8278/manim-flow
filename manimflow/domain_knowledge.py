@@ -184,7 +184,18 @@ ANTI_PATTERNS = """
 5. STATIC TEXT WALLS: Paragraphs on screen. Animation should REPLACE text.
 6. ANIMATION FOR DECORATION: Spinning/bouncing for no reason. Motion must mean something.
 7. SIMULTANEOUS COMPETING ANIMATIONS: Two unrelated things moving at once.
-8. USING SHAPES AS CHARACTERS: Circle ≠ person. Triangle ≠ lawyer. Use labeled cards.
+8. USING SHAPES AS CHARACTERS: Circle != person. Triangle != lawyer. Use labeled cards.
+9. EMPTY RECTANGLES: A Rectangle with nothing inside is useless.
+   ALWAYS put labeled content inside containers. Use:
+   court = VGroup(
+       RoundedRectangle(width=4, height=2.5, color=BLUE, fill_opacity=0.1),
+       Text("District Court", font_size=28, color=BLUE).move_to(UP*0.5),
+       Text("Handles: Property, Traffic, Family", font_size=18, color=WHITE).move_to(DOWN*0.3),
+   )
+   NOT just Rectangle(width=5, height=3, color=BLUE)
+10. FULL-SCREEN SHAPES: Never make a shape so big it fills the entire screen.
+    Maximum shape size: width=5, height=3. Leave margins around everything.
+    The screen is 14x8 Manim units — shapes should use at most 60% of it.
 """
 
 # ─── STORYTELLING ───
