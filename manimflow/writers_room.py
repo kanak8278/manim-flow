@@ -413,8 +413,18 @@ def run_writers_room(
         _log(f"  Revised: {story_draft.get('title', '')}")
         revision += 1
 
-    # Build approved story
-    narrations = [s.get("narration", "") for s in story_draft.get("scenes", [])]
+    # Build approved story — handle scenes that might be strings instead of dicts
+    raw_scenes = story_draft.get("scenes", [])
+    narrations = []
+    clean_scenes = []
+    for s in raw_scenes:
+        if isinstance(s, dict):
+            narrations.append(s.get("narration", ""))
+            clean_scenes.append(s)
+        elif isinstance(s, str):
+            narrations.append(s)
+            clean_scenes.append({"narration": s, "visual": s, "name": f"scene"})
+    story_draft["scenes"] = clean_scenes
 
     return ApprovedStory(
         title=story_draft.get("title", topic),
