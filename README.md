@@ -1,5 +1,8 @@
 # ManimFlow
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
 ManimFlow generates educational explainer videos from a text prompt — you type a topic and it produces a complete animated video with voiceover, background music, and a thumbnail, using Manim (3Blue1Brown's animation engine) and Claude for story/code generation.
 
 ```bash
@@ -19,6 +22,26 @@ ManimFlow takes any educational topic and produces a complete video through a mu
 7. **Quality Evaluation** — Vision + code analysis scoring with surgical fix loop
 8. **Audio + Thumbnail** — Background music mixing and thumbnail generation
 
+## Prerequisites
+
+- **Python 3.11+**
+- **[uv](https://docs.astral.sh/uv/)** — fast Python package manager
+- **ffmpeg** — video/audio processing
+- **LaTeX** — for mathematical text rendering (MathTex, Tex)
+- **Anthropic API key** — Claude powers all generation stages
+
+```bash
+# macOS
+brew install ffmpeg
+brew install --cask mactex-no-gui   # or: brew install basictex
+
+# Ubuntu/Debian
+sudo apt install ffmpeg texlive-full
+
+# uv (if not installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 ## Install
 
 ```bash
@@ -26,20 +49,11 @@ git clone https://github.com/kanak8278/manim-flow.git
 cd manim-flow
 uv sync
 
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
-# Optional: Langfuse observability
-echo "LANGFUSE_PUBLIC_KEY=pk-lf-..." >> .env
-echo "LANGFUSE_SECRET_KEY=sk-lf-..." >> .env
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY
 
 export $(cat .env | xargs)
 uv run manimflow "Why is 0.999... equal to 1?"
-```
-
-### System dependencies
-
-```bash
-# macOS
-brew install ffmpeg
 ```
 
 ## Usage
@@ -176,10 +190,6 @@ manimflow/
 │   ├── transitions.py      Transition types
 │   ├── platform.py         Platform presets
 │   └── topics.py           Suggested topics
-│
-└── reviewers/              Review systems
-    ├── base.py
-    └── design_reviewer.py
 ```
 
 ## Knowledge Base
@@ -192,9 +202,10 @@ The search uses BM25 multi-field ranking with a **343-term controlled vocabulary
 
 ManimFlow integrates with [Langfuse](https://langfuse.com) for tracing. Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in your `.env` to see the full call tree: every LLM call, tool search, and pipeline stage with timing and token usage.
 
-## Requirements
+## Acknowledgments
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
-- ffmpeg
-- Anthropic API key (Claude Sonnet)
+ManimFlow builds on the incredible work of the Manim community. The knowledge base was developed by studying animation patterns from publicly available projects — no third-party source code is included in this repository. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full attribution.
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE) for details.

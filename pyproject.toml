@@ -3,6 +3,7 @@ name = "manimflow"
 version = "0.1.0"
 description = "A pipeline for generating Manim animations in 3Blue1Brown style"
 readme = "README.md"
+license = {text = "Apache-2.0"}
 requires-python = ">=3.11"
 dependencies = [
     "anthropic>=0.84.0",
