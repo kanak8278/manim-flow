@@ -22,8 +22,8 @@ def extract_scene_timings(code: str) -> list[dict]:
     current_time = 0.0
 
     scene_pattern = re.compile(
-        r'^\s*#\s*={2,}\s*(.*?)(?:\s*={2,})?\s*$|'  # # === SCENE NAME ===
-        r'^\s*#\s*(?:Scene|Act|Section)\s*\d*[:\s]*(.*)',  # # Scene 1: Name
+        r"^\s*#\s*={2,}\s*(.*?)(?:\s*={2,})?\s*$|"  # # === SCENE NAME ===
+        r"^\s*#\s*(?:Scene|Act|Section)\s*\d*[:\s]*(.*)",  # # Scene 1: Name
         re.IGNORECASE,
     )
 
@@ -37,7 +37,9 @@ def extract_scene_timings(code: str) -> list[dict]:
             if name:
                 # Close previous scene
                 if current_scene:
-                    current_scene["duration"] = round(current_time - current_scene["start_time"], 1)
+                    current_scene["duration"] = round(
+                        current_time - current_scene["start_time"], 1
+                    )
                     current_scene["end_time"] = round(current_time, 1)
                     scenes.append(current_scene)
 
@@ -51,13 +53,13 @@ def extract_scene_timings(code: str) -> list[dict]:
             continue
 
         # Accumulate time
-        rt_match = re.search(r'run_time\s*=\s*([0-9.]+)', stripped)
+        rt_match = re.search(r"run_time\s*=\s*([0-9.]+)", stripped)
         if rt_match:
             current_time += float(rt_match.group(1))
         elif "self.play(" in stripped and "run_time" not in stripped:
             current_time += 1.0  # default run_time
 
-        wt_match = re.search(r'self\.wait\(([0-9.]*)\)', stripped)
+        wt_match = re.search(r"self\.wait\(([0-9.]*)\)", stripped)
         if wt_match:
             val = wt_match.group(1)
             current_time += float(val) if val else 1.0
@@ -74,9 +76,18 @@ def extract_scene_timings(code: str) -> list[dict]:
 def get_video_duration(video_path: str) -> float:
     """Get actual video duration in seconds."""
     result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", video_path],
-        capture_output=True, text=True,
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ],
+        capture_output=True,
+        text=True,
     )
     if result.returncode == 0:
         return float(result.stdout.strip())
@@ -91,7 +102,9 @@ async def rewrite_narration_for_timing(story: dict, scene_timings: list[dict]) -
     """
     from ..core.agent import call_llm, extract_json
 
-    WORDS_PER_SECOND = 2.0  # Conservative — ensures narration fits within scene duration
+    WORDS_PER_SECOND = (
+        2.0  # Conservative — ensures narration fits within scene duration
+    )
 
     scenes_with_budget = []
     for i, scene in enumerate(story.get("scenes", [])):
@@ -104,15 +117,17 @@ async def rewrite_narration_for_timing(story: dict, scene_timings: list[dict]) -
         current_narration = scene.get("narration", "")
         current_words = len(current_narration.split())
 
-        scenes_with_budget.append({
-            "scene_id": scene.get("id", i + 1),
-            "name": scene.get("name", f"scene_{i}"),
-            "video_duration": actual_dur,
-            "target_words": target_words,
-            "current_narration": current_narration,
-            "current_words": current_words,
-            "needs_rewrite": abs(current_words - target_words) > target_words * 0.3,
-        })
+        scenes_with_budget.append(
+            {
+                "scene_id": scene.get("id", i + 1),
+                "name": scene.get("name", f"scene_{i}"),
+                "video_duration": actual_dur,
+                "target_words": target_words,
+                "current_narration": current_narration,
+                "current_words": current_words,
+                "needs_rewrite": abs(current_words - target_words) > target_words * 0.3,
+            }
+        )
 
     # Only call LLM if narration needs significant rewriting
     needs_rewrite = [s for s in scenes_with_budget if s["needs_rewrite"]]
@@ -128,11 +143,11 @@ async def rewrite_narration_for_timing(story: dict, scene_timings: list[dict]) -
         prompt += (
             f"Scene '{s['name']}' ({s['video_duration']:.0f}s video, "
             f"target ~{s['target_words']} words, currently {s['current_words']} words):\n"
-            f"  Current: \"{s['current_narration']}\"\n\n"
+            f'  Current: "{s["current_narration"]}"\n\n'
         )
 
     prompt += (
-        "Return JSON: {\"narrations\": {\"scene_id\": \"rewritten narration text\", ...}}\n"
+        'Return JSON: {"narrations": {"scene_id": "rewritten narration text", ...}}\n'
         "Only include scenes that need rewriting. Keep others unchanged."
     )
 

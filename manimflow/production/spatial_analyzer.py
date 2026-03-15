@@ -12,13 +12,12 @@ The analyzer parses Manim code and tracks:
 """
 
 import re
-import ast
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 # Manim's default frame boundaries (in Manim units)
 FRAME_WIDTH = 14.22  # ~7.11 each side
-FRAME_HEIGHT = 8.0   # ~4 each side
+FRAME_HEIGHT = 8.0  # ~4 each side
 FRAME_X_MIN = -FRAME_WIDTH / 2
 FRAME_X_MAX = FRAME_WIDTH / 2
 FRAME_Y_MIN = -FRAME_HEIGHT / 2
@@ -26,12 +25,13 @@ FRAME_Y_MAX = FRAME_HEIGHT / 2
 
 # Approximate sizes for common elements
 TEXT_HEIGHT_PER_FONTSIZE = 0.035  # rough: font_size * this = height in Manim units
-TEXT_WIDTH_PER_CHAR = 0.022      # rough: chars * font_size * this = width
+TEXT_WIDTH_PER_CHAR = 0.022  # rough: chars * font_size * this = width
 
 
 @dataclass
 class BBox:
     """Axis-aligned bounding box."""
+
     x_min: float
     y_min: float
     x_max: float
@@ -84,11 +84,12 @@ class BBox:
 @dataclass
 class SceneElement:
     """A tracked element on screen."""
-    name: str            # variable name in code
-    kind: str            # text, mathtex, circle, rectangle, axes, curve, vgroup, etc
+
+    name: str  # variable name in code
+    kind: str  # text, mathtex, circle, rectangle, axes, curve, vgroup, etc
     bbox: BBox
     line_number: int
-    content: str = ""    # text content if applicable
+    content: str = ""  # text content if applicable
     font_size: float = 32
     on_screen: bool = False
     added_at_time: float = 0
@@ -146,16 +147,25 @@ def analyze_scene(code: str) -> dict:
                         elements[name].on_screen = False
                         elements[name].removed_at_time = current_time
 
-            timeline.append({
-                "time": round(current_time, 1),
-                "event": event_type,
-                "elements": names,
-                "line": i,
-            })
+            timeline.append(
+                {
+                    "time": round(current_time, 1),
+                    "event": event_type,
+                    "elements": names,
+                    "line": i,
+                }
+            )
 
             # Check overlaps among currently on-screen elements
-            _check_overlaps(on_screen, elements, current_time, issues, warnings, i,
-                          reported_overlap_pairs)
+            _check_overlaps(
+                on_screen,
+                elements,
+                current_time,
+                issues,
+                warnings,
+                i,
+                reported_overlap_pairs,
+            )
 
             # Check screen usage (too empty? too full? oversized shapes?)
             _check_screen_usage(elements, on_screen, issues, warnings)
@@ -219,8 +229,14 @@ def _parse_creation(line: str, line_num: int) -> SceneElement | None:
         name, _, content = m.groups()
         font_size = _extract_kwarg(line, "font_size", 32)
         bbox = _estimate_text_bbox(content, font_size)
-        return SceneElement(name=name, kind="text", bbox=bbox, line_number=line_num,
-                          content=content, font_size=font_size)
+        return SceneElement(
+            name=name,
+            kind="text",
+            bbox=bbox,
+            line_number=line_num,
+            content=content,
+            font_size=font_size,
+        )
 
     # Match: var = MathTex(r"...", ...)
     m = re.match(r"(\w+)\s*=\s*MathTex\(", line)
@@ -228,8 +244,13 @@ def _parse_creation(line: str, line_num: int) -> SceneElement | None:
         name = m.group(1)
         font_size = _extract_kwarg(line, "font_size", 48)
         bbox = _estimate_text_bbox("math_expr", font_size, is_math=True)
-        return SceneElement(name=name, kind="mathtex", bbox=bbox, line_number=line_num,
-                          font_size=font_size)
+        return SceneElement(
+            name=name,
+            kind="mathtex",
+            bbox=bbox,
+            line_number=line_num,
+            font_size=font_size,
+        )
 
     # Match: var = Circle(...)
     m = re.match(r"(\w+)\s*=\s*Circle\(", line)
@@ -245,8 +266,10 @@ def _parse_creation(line: str, line_num: int) -> SceneElement | None:
         name = m.group(1)
         width = _extract_kwarg(line, "width", 4.0)
         height = _extract_kwarg(line, "height", 2.0)
-        bbox = BBox(-width/2, -height/2, width/2, height/2)
-        return SceneElement(name=name, kind="rectangle", bbox=bbox, line_number=line_num)
+        bbox = BBox(-width / 2, -height / 2, width / 2, height / 2)
+        return SceneElement(
+            name=name, kind="rectangle", bbox=bbox, line_number=line_num
+        )
 
     # Match: var = Axes(...)
     m = re.match(r"(\w+)\s*=\s*Axes\(", line)
@@ -254,7 +277,7 @@ def _parse_creation(line: str, line_num: int) -> SceneElement | None:
         name = m.group(1)
         x_length = _extract_kwarg(line, "x_length", 10.0)
         y_length = _extract_kwarg(line, "y_length", 6.0)
-        bbox = BBox(-x_length/2, -y_length/2, x_length/2, y_length/2)
+        bbox = BBox(-x_length / 2, -y_length / 2, x_length / 2, y_length / 2)
         return SceneElement(name=name, kind="axes", bbox=bbox, line_number=line_num)
 
     # Match: var = VGroup(...)
@@ -265,13 +288,25 @@ def _parse_creation(line: str, line_num: int) -> SceneElement | None:
         return SceneElement(name=name, kind="vgroup", bbox=bbox, line_number=line_num)
 
     # Match: var = Arrow/Line/Dot/Polygon
-    for shape in ["Arrow", "Line", "Dot", "Polygon", "Square", "Triangle",
-                   "ParametricFunction", "Sector", "Arc", "NumberPlane"]:
+    for shape in [
+        "Arrow",
+        "Line",
+        "Dot",
+        "Polygon",
+        "Square",
+        "Triangle",
+        "ParametricFunction",
+        "Sector",
+        "Arc",
+        "NumberPlane",
+    ]:
         m = re.match(rf"(\w+)\s*=\s*{shape}\(", line)
         if m:
             name = m.group(1)
             bbox = BBox(-1, -1, 1, 1)  # rough default
-            return SceneElement(name=name, kind=shape.lower(), bbox=bbox, line_number=line_num)
+            return SceneElement(
+                name=name, kind=shape.lower(), bbox=bbox, line_number=line_num
+            )
 
     return None
 
@@ -286,7 +321,7 @@ def _parse_positioning(line: str, elements: dict[str, SceneElement]):
             x, y = _parse_position(pos_expr)
             elem = elements[name]
             w, h = elem.bbox.width, elem.bbox.height
-            elem.bbox = BBox(x - w/2, y - h/2, x + w/2, y + h/2)
+            elem.bbox = BBox(x - w / 2, y - h / 2, x + w / 2, y + h / 2)
 
     # Match: .move_to() in chained calls
     m = re.search(r"\.move_to\((.+?)\)", line)
@@ -297,7 +332,7 @@ def _parse_positioning(line: str, elements: dict[str, SceneElement]):
             x, y = _parse_position(m.group(1))
             elem = elements[var_match.group(1)]
             w, h = elem.bbox.width, elem.bbox.height
-            elem.bbox = BBox(x - w/2, y - h/2, x + w/2, y + h/2)
+            elem.bbox = BBox(x - w / 2, y - h / 2, x + w / 2, y + h / 2)
 
     # Match: var.next_to(other, DOWN, ...)
     m = re.search(r"(\w+)\.next_to\((\w+),\s*(\w+)", line)
@@ -308,14 +343,20 @@ def _parse_positioning(line: str, elements: dict[str, SceneElement]):
             ox, oy = other.bbox.center
             offset = 0.5  # default buff
             dx, dy = _direction_vector(direction)
-            nx = ox + dx * (other.bbox.width/2 + elements[name].bbox.width/2 + offset)
-            ny = oy + dy * (other.bbox.height/2 + elements[name].bbox.height/2 + offset)
+            nx = ox + dx * (
+                other.bbox.width / 2 + elements[name].bbox.width / 2 + offset
+            )
+            ny = oy + dy * (
+                other.bbox.height / 2 + elements[name].bbox.height / 2 + offset
+            )
             elem = elements[name]
             w, h = elem.bbox.width, elem.bbox.height
-            elem.bbox = BBox(nx - w/2, ny - h/2, nx + w/2, ny + h/2)
+            elem.bbox = BBox(nx - w / 2, ny - h / 2, nx + w / 2, ny + h / 2)
 
 
-def _parse_animation(line: str, line_num: int, elements: dict, on_screen: set) -> tuple | None:
+def _parse_animation(
+    line: str, line_num: int, elements: dict, on_screen: set
+) -> tuple | None:
     """Parse self.play() calls to track what goes on/off screen."""
     if "self.play(" not in line and "self.add(" not in line:
         return None
@@ -324,10 +365,16 @@ def _parse_animation(line: str, line_num: int, elements: dict, on_screen: set) -
 
     # Detect additions
     add_names = []
-    for pattern in [r"Write\((\w+)", r"Create\((\w+)", r"FadeIn\((\w+)",
-                    r"GrowFromCenter\((\w+)", r"GrowArrow\((\w+)",
-                    r"DrawBorderThenFill\((\w+)", r"SpinInFromNothing\((\w+)",
-                    r"self\.add\(([^)]+)\)"]:
+    for pattern in [
+        r"Write\((\w+)",
+        r"Create\((\w+)",
+        r"FadeIn\((\w+)",
+        r"GrowFromCenter\((\w+)",
+        r"GrowArrow\((\w+)",
+        r"DrawBorderThenFill\((\w+)",
+        r"SpinInFromNothing\((\w+)",
+        r"self\.add\(([^)]+)\)",
+    ]:
         for m in re.finditer(pattern, line):
             names = [n.strip() for n in m.group(1).split(",")]
             add_names.extend(names)
@@ -352,7 +399,7 @@ def _parse_animation(line: str, line_num: int, elements: dict, on_screen: set) -
 
     if add_names and remove_names:
         # Mixed — process removals first, then additions
-        result_names = remove_names + add_names
+        remove_names + add_names
         # Return as add since it's net effect
         return ("add", add_names, run_time)
     elif add_names:
@@ -363,22 +410,24 @@ def _parse_animation(line: str, line_num: int, elements: dict, on_screen: set) -
     return ("other", [], run_time)
 
 
-def _check_overlaps(on_screen: set, elements: dict, time: float,
-                    issues: list, warnings: list, line: int,
-                    _reported_pairs: set = None):
+def _check_overlaps(
+    on_screen: set,
+    elements: dict,
+    time: float,
+    issues: list,
+    warnings: list,
+    line: int,
+    _reported_pairs: set = None,
+):
     """Check for overlapping elements on screen. Deduplicates by pair."""
     if _reported_pairs is None:
         _reported_pairs = set()
 
     # Check ALL elements against ALL other elements (not just text-vs-text)
-    all_elements = [
-        (name, elements[name])
-        for name in on_screen
-        if name in elements
-    ]
+    all_elements = [(name, elements[name]) for name in on_screen if name in elements]
 
     for i, (name1, elem1) in enumerate(all_elements):
-        for name2, elem2 in all_elements[i+1:]:
+        for name2, elem2 in all_elements[i + 1 :]:
             pair_key = tuple(sorted([name1, name2]))
             if pair_key in _reported_pairs:
                 continue  # Already reported this pair
@@ -415,8 +464,9 @@ def _check_overlaps(on_screen: set, elements: dict, time: float,
                     )
 
 
-def _is_intentional_overlap(name1: str, elem1, name2: str, elem2,
-                             overlap_ratio: float) -> bool:
+def _is_intentional_overlap(
+    name1: str, elem1, name2: str, elem2, overlap_ratio: float
+) -> bool:
     """Determine if overlap between two elements is intentional.
 
     Intentional overlaps:
@@ -480,7 +530,11 @@ def _check_empty_screen(timeline: list, total_time: float, warnings: list):
     """Detect periods where nothing is on screen."""
     last_event = None
     for event in timeline:
-        if event["event"] == "remove" and last_event and last_event["event"] == "remove":
+        if (
+            event["event"] == "remove"
+            and last_event
+            and last_event["event"] == "remove"
+        ):
             gap = event["time"] - last_event["time"]
             if gap > 2:
                 warnings.append(
@@ -512,8 +566,10 @@ def _check_screen_usage(elements: dict, on_screen: set, issues: list, warnings: 
     for e in screen_elements:
         area = e.bbox.width * e.bbox.height
         if area > SCREEN_AREA * 0.5 and e.kind in ("circle", "rectangle"):
-            msg = (f"'{e.name}' ({e.kind}) covers {area/SCREEN_AREA:.0%} of screen — too large. "
-                   f"Max recommended: 60%.")
+            msg = (
+                f"'{e.name}' ({e.kind}) covers {area / SCREEN_AREA:.0%} of screen — too large. "
+                f"Max recommended: 60%."
+            )
             if msg not in issues:
                 issues.append(msg)
 
@@ -523,7 +579,7 @@ def _estimate_text_bbox(content: str, font_size: float, is_math: bool = False) -
     char_count = len(content) if not is_math else 8  # rough estimate for math
     height = font_size * TEXT_HEIGHT_PER_FONTSIZE
     width = char_count * font_size * TEXT_WIDTH_PER_CHAR
-    return BBox(-width/2, -height/2, width/2, height/2)
+    return BBox(-width / 2, -height / 2, width / 2, height / 2)
 
 
 def _extract_kwarg(line: str, key: str, default: float) -> float:
@@ -569,7 +625,9 @@ def _parse_position(expr: str) -> tuple[float, float]:
             x += value
 
     # Simple UP, DOWN without multiplier
-    if "UP" in expr and "*" not in expr.replace("UP", "").replace("DOWN", "").replace("LEFT", "").replace("RIGHT", ""):
+    if "UP" in expr and "*" not in expr.replace("UP", "").replace("DOWN", "").replace(
+        "LEFT", ""
+    ).replace("RIGHT", ""):
         if "UP" in expr:
             y += 1
         if "DOWN" in expr:
@@ -589,10 +647,14 @@ def _parse_position(expr: str) -> tuple[float, float]:
 def _direction_vector(direction: str) -> tuple[float, float]:
     """Convert direction name to (dx, dy) unit vector."""
     dirs = {
-        "UP": (0, 1), "DOWN": (0, -1),
-        "LEFT": (-1, 0), "RIGHT": (1, 0),
-        "UL": (-1, 1), "UR": (1, 1),
-        "DL": (-1, -1), "DR": (1, -1),
+        "UP": (0, 1),
+        "DOWN": (0, -1),
+        "LEFT": (-1, 0),
+        "RIGHT": (1, 0),
+        "UL": (-1, 1),
+        "UR": (1, 1),
+        "DL": (-1, -1),
+        "DR": (1, -1),
     }
     return dirs.get(direction, (0, 0))
 

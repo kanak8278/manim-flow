@@ -66,9 +66,7 @@ class AgentUsage:
     def add(self, usage_dict: dict):
         self.input_tokens += usage_dict.get("input_tokens", 0)
         self.output_tokens += usage_dict.get("output_tokens", 0)
-        self.cache_read_input_tokens += usage_dict.get(
-            "cache_read_input_tokens", 0
-        )
+        self.cache_read_input_tokens += usage_dict.get("cache_read_input_tokens", 0)
         self.cache_creation_input_tokens += usage_dict.get(
             "cache_creation_input_tokens", 0
         )
@@ -139,9 +137,7 @@ class Agent:
         else:
             api_key = os.environ.get("ANTHROPIC_API_KEY", "")
             if not api_key:
-                raise ValueError(
-                    "ANTHROPIC_API_KEY not set and provider=anthropic"
-                )
+                raise ValueError("ANTHROPIC_API_KEY not set and provider=anthropic")
             return anthropic.Anthropic(api_key=api_key)
 
     # ── Request building ────────────────────────────────────────
@@ -172,9 +168,7 @@ class Agent:
         cleaned = []
         for msg in self.messages:
             if any(k.startswith("_") for k in msg):
-                cleaned.append(
-                    {k: v for k, v in msg.items() if not k.startswith("_")}
-                )
+                cleaned.append({k: v for k, v in msg.items() if not k.startswith("_")})
             else:
                 cleaned.append(msg)
         return cleaned
@@ -220,9 +214,7 @@ class Agent:
         if not self.enable_thinking:
             return
 
-        model_base = (
-            self.model.split("-2")[0] if "-2" in self.model else self.model
-        )
+        model_base = self.model.split("-2")[0] if "-2" in self.model else self.model
         if model_base in ADAPTIVE_THINKING_MODELS:
             request["thinking"] = {"type": "adaptive"}
         else:
@@ -238,11 +230,7 @@ class Agent:
             betas.append("context-1m-2025-08-07")
 
         if self.enable_thinking:
-            model_base = (
-                self.model.split("-2")[0]
-                if "-2" in self.model
-                else self.model
-            )
+            model_base = self.model.split("-2")[0] if "-2" in self.model else self.model
             if model_base not in ADAPTIVE_THINKING_MODELS:
                 betas.append("interleaved-thinking-2025-05-14")
 
@@ -312,13 +300,9 @@ class Agent:
         """Make the API call. Retries on transient errors."""
         use_beta = "betas" in request
         if use_beta:
-            return await asyncio.to_thread(
-                self.client.beta.messages.create, **request
-            )
+            return await asyncio.to_thread(self.client.beta.messages.create, **request)
         else:
-            return await asyncio.to_thread(
-                self.client.messages.create, **request
-            )
+            return await asyncio.to_thread(self.client.messages.create, **request)
 
     # ── Message management ──────────────────────────────────────
 
@@ -354,9 +338,7 @@ class Agent:
         """Find the most recent anchor for a section."""
         for i in range(len(self.messages) - 1, -1, -1):
             msg = self.messages[i]
-            if msg.get("_section_id") == section_id and msg.get(
-                "_fork_anchor"
-            ):
+            if msg.get("_section_id") == section_id and msg.get("_fork_anchor"):
                 return i, msg
         return None, None
 
@@ -427,6 +409,7 @@ class Agent:
         """
         if tool_executor is None:
             from ..knowledge.tool import execute_tool
+
             tool_executor = execute_tool
 
         for round_num in range(max_tool_rounds):
@@ -447,19 +430,26 @@ class Agent:
 
                     # Build concise summary of tool call
                     query = tool_input.get("query", "")
-                    filters = {k: v for k, v in tool_input.items()
-                               if k not in ("query", "limit") and v}
+                    filters = {
+                        k: v
+                        for k, v in tool_input.items()
+                        if k not in ("query", "limit") and v
+                    }
                     filter_str = f" filters={filters}" if filters else ""
-                    print(f"    [TOOL] {tool_name}(\"{query}\"{filter_str})")
+                    print(f'    [TOOL] {tool_name}("{query}"{filter_str})')
                     logger.info(f"Tool call: {tool_name}({tool_input})")
 
                     try:
                         result_text = tool_executor(tool_name, tool_input)
                         # Show result summary
                         result_lines = result_text.strip().split("\n")
-                        doc_count = sum(1 for l in result_lines if l.startswith("## "))
+                        doc_count = sum(
+                            1 for line in result_lines if line.startswith("## ")
+                        )
                         if doc_count:
-                            print(f"    [RESULT] {doc_count} docs, {len(result_text)} chars")
+                            print(
+                                f"    [RESULT] {doc_count} docs, {len(result_text)} chars"
+                            )
                         elif len(result_text) > 100:
                             print(f"    [RESULT] {len(result_text)} chars")
                     except Exception as e:
@@ -467,11 +457,13 @@ class Agent:
                         result_text = f"Error executing {tool_name}: {e}"
                         print(f"    [ERROR] {e}")
 
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result_text,
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result_text,
+                        }
+                    )
 
             if tool_results:
                 self.add_tool_results(tool_results)
@@ -481,7 +473,9 @@ class Agent:
                 return self.extract_text(content)
 
         # Max rounds — force a final response without tools
-        print(f"    [TOOL] Hit max_tool_rounds={max_tool_rounds}, forcing final response")
+        print(
+            f"    [TOOL] Hit max_tool_rounds={max_tool_rounds}, forcing final response"
+        )
         content, _, _ = await self.call()
         return self.extract_text(content)
 
@@ -504,15 +498,18 @@ class Agent:
         uses = []
         for block in content_blocks:
             if hasattr(block, "type") and block.type == "tool_use":
-                uses.append({
-                    "id": block.id,
-                    "name": block.name,
-                    "input": block.input,
-                })
+                uses.append(
+                    {
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    }
+                )
         return uses
 
 
 # ─── Backward-compatible call_llm ────────────────────────────────
+
 
 async def call_llm(
     system_prompt: str,

@@ -6,17 +6,17 @@ Then merges audio with the rendered video using ffmpeg.
 
 import asyncio
 import os
-import ssl
 import subprocess
-import json
 
 # Fix SSL certs for edge-tts (uv-managed Python may lack system certs)
 try:
     import truststore
+
     truststore.inject_into_ssl()
 except Exception:
     try:
         import certifi
+
         os.environ.setdefault("SSL_CERT_FILE", certifi.where())
     except ImportError:
         pass
@@ -42,17 +42,25 @@ async def _generate_tts(text: str, output_path: str, voice: str) -> dict:
 
     # Get duration using ffprobe
     result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", output_path],
-        capture_output=True, text=True,
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            output_path,
+        ],
+        capture_output=True,
+        text=True,
     )
     duration = float(result.stdout.strip()) if result.returncode == 0 else 0
 
     return {"path": output_path, "duration": duration}
 
 
-def generate_voiceover(story: dict, output_dir: str,
-                       voice: str = "default") -> dict:
+def generate_voiceover(story: dict, output_dir: str, voice: str = "default") -> dict:
     """Generate voiceover audio from story narration.
 
     Combines all scene narrations into a single audio file with
@@ -75,13 +83,15 @@ def generate_voiceover(story: dict, output_dir: str,
         audio_path = os.path.join(output_dir, f"scene_{i:02d}.mp3")
         try:
             result = asyncio.run(_generate_tts(narration, audio_path, voice_name))
-            scene_audios.append({
-                "scene_id": scene.get("id", i),
-                "scene_name": scene.get("name", f"scene_{i}"),
-                "narration": narration,
-                "audio_path": result["path"],
-                "duration": result["duration"],
-            })
+            scene_audios.append(
+                {
+                    "scene_id": scene.get("id", i),
+                    "scene_name": scene.get("name", f"scene_{i}"),
+                    "narration": narration,
+                    "audio_path": result["path"],
+                    "duration": result["duration"],
+                }
+            )
         except Exception as e:
             print(f"  TTS failed for scene {i}: {e}")
             continue
@@ -104,21 +114,34 @@ def generate_voiceover(story: dict, output_dir: str,
     }
 
 
-def _concatenate_with_pauses(scene_audios: list, output_path: str,
-                              pause_seconds: float = 1.0):
+def _concatenate_with_pauses(
+    scene_audios: list, output_path: str, pause_seconds: float = 1.0
+):
     """Concatenate audio files with silence gaps between them."""
     concat_dir = os.path.dirname(output_path)
     concat_file = os.path.join(concat_dir, "concat_list.txt")
 
     # Generate silence file
     silence_path = os.path.join(concat_dir, "silence.mp3")
-    subprocess.run([
-        "ffmpeg", "-y", "-f", "lavfi", "-i",
-        f"anullsrc=r=24000:cl=mono",
-        "-t", str(pause_seconds),
-        "-c:a", "libmp3lame", "-q:a", "9",
-        silence_path,
-    ], capture_output=True, text=True)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=24000:cl=mono",
+            "-t",
+            str(pause_seconds),
+            "-c:a",
+            "libmp3lame",
+            "-q:a",
+            "9",
+            silence_path,
+        ],
+        capture_output=True,
+        text=True,
+    )
 
     # Build concat list
     with open(concat_file, "w") as f:
@@ -128,12 +151,25 @@ def _concatenate_with_pauses(scene_audios: list, output_path: str,
                 f.write(f"file '{os.path.abspath(silence_path)}'\n")
 
     # Concatenate
-    subprocess.run([
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-        "-i", concat_file,
-        "-c:a", "libmp3lame", "-q:a", "2",
-        output_path,
-    ], capture_output=True, text=True)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            concat_file,
+            "-c:a",
+            "libmp3lame",
+            "-q:a",
+            "2",
+            output_path,
+        ],
+        capture_output=True,
+        text=True,
+    )
 
     # Cleanup
     for f in [concat_file, silence_path]:
@@ -141,19 +177,28 @@ def _concatenate_with_pauses(scene_audios: list, output_path: str,
             os.remove(f)
 
 
-def merge_video_audio(video_path: str, audio_path: str,
-                      output_path: str) -> dict:
+def merge_video_audio(video_path: str, audio_path: str, output_path: str) -> dict:
     """Merge video and audio into final output."""
-    result = subprocess.run([
-        "ffmpeg", "-y",
-        "-i", video_path,
-        "-i", audio_path,
-        "-c:v", "copy",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        "-shortest",
-        output_path,
-    ], capture_output=True, text=True)
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            "-i",
+            audio_path,
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-shortest",
+            output_path,
+        ],
+        capture_output=True,
+        text=True,
+    )
 
     if result.returncode != 0:
         return {"success": False, "error": result.stderr}

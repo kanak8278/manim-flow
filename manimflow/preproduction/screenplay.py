@@ -17,9 +17,7 @@ Uses the knowledge base to find real examples of how specific visual techniques
 were implemented in production Manim videos.
 """
 
-import json
-import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from ..core.agent import Agent, extract_json
 from ..core import tracing
 from ..core.config import MAX_TOKENS_SCREENPLAY, SCREENPLAY_MAX_TOOL_ROUNDS
@@ -31,6 +29,7 @@ from .screenplay_validator import validate_screenplay as _validate, StructuralIs
 @dataclass
 class Shot:
     """One shot in the screenplay."""
+
     id: int
     narration: str  # with <bookmark> tags
     elements: list[dict]  # semantic positioning, typed elements
@@ -42,6 +41,7 @@ class Shot:
 @dataclass
 class Screenplay:
     """Complete structured screenplay."""
+
     title: str
     design_rules: dict  # palette, color_roles, typography, animation vocab
     shots: list[Shot]
@@ -51,14 +51,16 @@ def _parse_shots(data: dict) -> list[Shot]:
     """Parse shot dicts into Shot objects."""
     shots = []
     for s in data.get("shots", []):
-        shots.append(Shot(
-            id=s.get("id", len(shots) + 1),
-            narration=s.get("narration", ""),
-            elements=s.get("elements", []),
-            animation_sequence=s.get("animation_sequence", []),
-            cleanup=s.get("cleanup", []),
-            persists=s.get("persists", []),
-        ))
+        shots.append(
+            Shot(
+                id=s.get("id", len(shots) + 1),
+                narration=s.get("narration", ""),
+                elements=s.get("elements", []),
+                animation_sequence=s.get("animation_sequence", []),
+                cleanup=s.get("cleanup", []),
+                persists=s.get("persists", []),
+            )
+        )
     return shots
 
 
@@ -163,7 +165,9 @@ async def write_screenplay(
     rules = data.get("design_rules", {})
     shots = _parse_shots(data)
 
-    _log(f"  Screenplay: {len(shots)} shots, {sum(len(s.elements) for s in shots)} elements")
+    _log(
+        f"  Screenplay: {len(shots)} shots, {sum(len(s.elements) for s in shots)} elements"
+    )
 
     # ── Validation-fix loop ──
     for fix_round in range(max_fix_rounds):
@@ -174,7 +178,9 @@ async def write_screenplay(
         errors = [i for i in validation["issues"] if i.severity == "error"]
         warnings = [i for i in validation["issues"] if i.severity == "warning"]
 
-        _log(f"  Validation round {fix_round + 1}: {len(errors)} errors, {len(warnings)} warnings")
+        _log(
+            f"  Validation round {fix_round + 1}: {len(errors)} errors, {len(warnings)} warnings"
+        )
 
         if not errors:
             _log(f"  Screenplay valid (0 errors, {len(warnings)} warnings)")
@@ -187,7 +193,9 @@ async def write_screenplay(
             _log(f"    [WARN] Shot {issue.shot_id}: {issue.description}")
 
         # Send issues to the LLM for fixing (same conversation — it has full context)
-        issues_text = _format_issues_for_llm(errors + warnings[:10])  # prioritize errors
+        issues_text = _format_issues_for_llm(
+            errors + warnings[:10]
+        )  # prioritize errors
         agent.add_user_message(issues_text)
 
         _log(f"  Fixing {len(errors)} errors...")
@@ -212,7 +220,7 @@ async def write_screenplay(
             fixed_shot_list = []
 
         if not fixed_shot_list:
-            _log(f"  No corrected shots returned")
+            _log("  No corrected shots returned")
             break
 
         # Patch corrected shots into the full screenplay by matching shot IDs
@@ -230,7 +238,9 @@ async def write_screenplay(
                     id=shot.id,
                     narration=fixed.get("narration", shot.narration),
                     elements=fixed.get("elements", shot.elements),
-                    animation_sequence=fixed.get("animation_sequence", shot.animation_sequence),
+                    animation_sequence=fixed.get(
+                        "animation_sequence", shot.animation_sequence
+                    ),
                     cleanup=fixed.get("cleanup", shot.cleanup),
                     persists=fixed.get("persists", shot.persists),
                 )
@@ -292,15 +302,19 @@ def screenplay_to_codegen_context(sp: Screenplay) -> str:
     for name, code in POSITION_HINTS.items():
         lines.append(f"    {name} → .move_to({code})")
     lines.append("  position_on + value → .move_to(element.number_to_point(value))")
-    lines.append("  position_relative_to + direction → .next_to(element, DIRECTION, buff=buff)")
+    lines.append(
+        "  position_relative_to + direction → .next_to(element, DIRECTION, buff=buff)"
+    )
     lines.append("  inside → .move_to(container.get_center())")
-    lines.append("  from_element + to_element → Arrow(elem_a.get_center(), elem_b.get_center())")
+    lines.append(
+        "  from_element + to_element → Arrow(elem_a.get_center(), elem_b.get_center())"
+    )
 
     lines.append(f"\nSHOTS ({len(sp.shots)} total):")
 
     for shot in sp.shots:
         lines.append(f"\n--- SHOT {shot.id} ---")
-        lines.append(f"Narration: \"{shot.narration}\"")
+        lines.append(f'Narration: "{shot.narration}"')
 
         lines.append("Elements:")
         for elem in shot.elements:
@@ -316,31 +330,57 @@ def screenplay_to_codegen_context(sp: Screenplay) -> str:
                 hint = POSITION_HINTS.get(pos, pos)
                 pos_parts.append(f"at {pos} → .move_to({hint})")
             if elem.get("position_on"):
-                pos_parts.append(f"on {elem['position_on']} at value={elem.get('value', '?')}")
+                pos_parts.append(
+                    f"on {elem['position_on']} at value={elem.get('value', '?')}"
+                )
             if elem.get("position_relative_to"):
                 direction = elem.get("direction", "right")
                 buff = elem.get("buff", 0.3)
-                pos_parts.append(f"next_to {elem['position_relative_to']} {direction} buff={buff}")
+                pos_parts.append(
+                    f"next_to {elem['position_relative_to']} {direction} buff={buff}"
+                )
             if elem.get("inside"):
                 pos_parts.append(f"inside {elem['inside']}")
             if elem.get("from_element"):
-                pos_parts.append(f"from {elem['from_element']} to {elem.get('to_element', '?')}")
+                pos_parts.append(
+                    f"from {elem['from_element']} to {elem.get('to_element', '?')}"
+                )
 
             pos_str = ", ".join(pos_parts) if pos_parts else "no position"
 
             # Extra params
-            extras = {k: v for k, v in elem.items()
-                      if k not in ("name", "type", "label", "position", "color",
-                                   "position_on", "value", "position_relative_to",
-                                   "direction", "buff", "inside", "from_element",
-                                   "to_element", "from_value", "to_value",
-                                   "overlaps_with") and v}
+            extras = {
+                k: v
+                for k, v in elem.items()
+                if k
+                not in (
+                    "name",
+                    "type",
+                    "label",
+                    "position",
+                    "color",
+                    "position_on",
+                    "value",
+                    "position_relative_to",
+                    "direction",
+                    "buff",
+                    "inside",
+                    "from_element",
+                    "to_element",
+                    "from_value",
+                    "to_value",
+                    "overlaps_with",
+                )
+                and v
+            }
             extra_str = f" {extras}" if extras else ""
 
             overlaps = elem.get("overlaps_with", [])
             overlap_str = f" [intentionally overlaps: {overlaps}]" if overlaps else ""
 
-            lines.append(f"  {name}: {etype} \"{label}\" {pos_str} color={color}{extra_str}{overlap_str}")
+            lines.append(
+                f'  {name}: {etype} "{label}" {pos_str} color={color}{extra_str}{overlap_str}'
+            )
 
         lines.append("Animation Sequence:")
         for anim in shot.animation_sequence:
@@ -360,7 +400,7 @@ def _format_animation(anim: dict, indent: int = 0) -> str:
     action = anim.get("action", "?")
 
     if action == "wait_bookmark":
-        return f"{prefix}wait_bookmark(\"{anim.get('mark', '?')}\")"
+        return f'{prefix}wait_bookmark("{anim.get("mark", "?")}")'
 
     if action == "wait":
         return f"{prefix}wait({anim.get('duration', '?')}s)"
@@ -374,7 +414,7 @@ def _format_animation(anim: dict, indent: int = 0) -> str:
     if action == "transform":
         to_elem = anim.get("to_element", {})
         if isinstance(to_elem, dict):
-            to_desc = f"→ {to_elem.get('name', '?')} ({to_elem.get('type', '?')} \"{to_elem.get('label', '')}\")"
+            to_desc = f'→ {to_elem.get("name", "?")} ({to_elem.get("type", "?")} "{to_elem.get("label", "")}")'
         else:
             to_desc = f"→ {to_elem}"
         return f"{prefix}transform({anim.get('target', '?')} {to_desc}, run_time={anim.get('run_time', '?')})"
@@ -394,7 +434,7 @@ def _format_animation(anim: dict, indent: int = 0) -> str:
 
 def print_screenplay(sp: Screenplay):
     """Pretty-print a screenplay summary."""
-    print(f"\n--- Screenplay: \"{sp.title}\" ({len(sp.shots)} shots) ---")
+    print(f'\n--- Screenplay: "{sp.title}" ({len(sp.shots)} shots) ---')
 
     if sp.design_rules:
         palette = sp.design_rules.get("palette", {})
@@ -415,11 +455,13 @@ def print_screenplay(sp: Screenplay):
         total_anims += anim_count
 
         print(f"\n  Shot {shot.id}: {elem_count} elements, {anim_count} anims")
-        print(f"    Narration: \"{narration_preview}...\"")
+        print(f'    Narration: "{narration_preview}..."')
 
         for e in shot.elements[:4]:
             pos_desc = _describe_position(e)
-            print(f"    {e.get('name')}: {e.get('type')} \"{e.get('label', '')[:25]}\" {pos_desc}")
+            print(
+                f'    {e.get("name")}: {e.get("type")} "{e.get("label", "")[:25]}" {pos_desc}'
+            )
 
         if elem_count > 4:
             print(f"    ... and {elem_count - 4} more elements")

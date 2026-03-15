@@ -223,16 +223,19 @@ STORYTELLING_RULES = """
 
 # ─── COMPLETE REFERENCE FOR CODE GENERATION ───
 
+
 def get_full_design_knowledge() -> str:
     """Get all domain knowledge as a single string for injection into prompts."""
-    return "\n\n".join([
-        LAYOUT_RULES,
-        COLOR_RULES,
-        VISUAL_VOCABULARY,
-        ANIMATION_RULES,
-        TYPOGRAPHY_RULES,
-        ANTI_PATTERNS,
-    ])
+    return "\n\n".join(
+        [
+            LAYOUT_RULES,
+            COLOR_RULES,
+            VISUAL_VOCABULARY,
+            ANIMATION_RULES,
+            TYPOGRAPHY_RULES,
+            ANTI_PATTERNS,
+        ]
+    )
 
 
 def get_storytelling_knowledge() -> str:
@@ -242,12 +245,14 @@ def get_storytelling_knowledge() -> str:
 
 def get_review_knowledge() -> str:
     """Get all knowledge for evaluation/review systems."""
-    return "\n\n".join([
-        LAYOUT_RULES,
-        COLOR_RULES,
-        VISUAL_VOCABULARY,
-        ANIMATION_RULES,
-        TYPOGRAPHY_RULES,
-        ANTI_PATTERNS,
-        STORYTELLING_RULES,
-    ])
+    return "\n\n".join(
+        [
+            LAYOUT_RULES,
+            COLOR_RULES,
+            VISUAL_VOCABULARY,
+            ANIMATION_RULES,
+            TYPOGRAPHY_RULES,
+            ANTI_PATTERNS,
+            STORYTELLING_RULES,
+        ]
+    )

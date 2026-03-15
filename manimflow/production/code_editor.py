@@ -6,9 +6,8 @@ this gives the LLM a tool-like interface: read specific lines, search, replace s
 The LLM receives the code with line numbers and can specify exact edits.
 """
 
-import re
 import json
-from ..core.agent import Agent, call_llm
+from ..core.agent import Agent
 from ..knowledge.tool import get_knowledge_system_context
 
 
@@ -53,7 +52,7 @@ async def surgical_fix(code: str, issues: str) -> str:
     """Fix code with targeted edits instead of full rewrite."""
     # Number the lines for the LLM
     lines = code.split("\n")
-    numbered = "\n".join(f"{i+1:4d} | {line}" for i, line in enumerate(lines))
+    numbered = "\n".join(f"{i + 1:4d} | {line}" for i, line in enumerate(lines))
 
     user_prompt = (
         f"Fix this Manim code. Make SURGICAL EDITS only — do NOT rewrite the file.\n\n"
@@ -98,7 +97,7 @@ def _parse_edits(response: str) -> list[dict]:
             depth -= 1
             if depth == 0:
                 try:
-                    return json.loads(response[start:i+1])
+                    return json.loads(response[start : i + 1])
                 except json.JSONDecodeError:
                     return []
     return []
@@ -106,6 +105,7 @@ def _parse_edits(response: str) -> list[dict]:
 
 def _apply_edits(lines: list[str], edits: list[dict]) -> str:
     """Apply edits to lines, processing in reverse order to preserve line numbers."""
+
     # Sort edits by line number, descending (so we apply from bottom to top)
     def edit_line(e):
         if e["action"] == "insert":

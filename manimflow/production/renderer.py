@@ -21,9 +21,14 @@ def render_scene(
         f.write(code)
 
     cmd = [
-        "uv", "run", "python", "-m", "manim",
+        "uv",
+        "run",
+        "python",
+        "-m",
+        "manim",
         f"-q{quality}",
-        "--media_dir", output_dir,
+        "--media_dir",
+        output_dir,
     ]
     if preview:
         cmd.append("-p")
@@ -43,7 +48,9 @@ def render_scene(
         capture_output=True,
         text=True,
         timeout=300,
-        cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        cwd=os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ),
         env=env,
     )
 
@@ -85,11 +92,17 @@ def _enhance_latex_error(error: str, output_dir: str) -> str:
     """Read LaTeX log files to provide better error context."""
     tex_dir = os.path.join(output_dir, "Tex")
     if not os.path.isdir(tex_dir):
-        return error + "\n\nLATEX FIX HINT: Do NOT use \\text{} inside MathTex(). Use Text() for words."
+        return (
+            error
+            + "\n\nLATEX FIX HINT: Do NOT use \\text{} inside MathTex(). Use Text() for words."
+        )
 
     log_files = glob_mod.glob(os.path.join(tex_dir, "*.log"))
     if not log_files:
-        return error + "\n\nLATEX FIX HINT: Do NOT use \\text{} inside MathTex(). Use Text() for words."
+        return (
+            error
+            + "\n\nLATEX FIX HINT: Do NOT use \\text{} inside MathTex(). Use Text() for words."
+        )
 
     # Read the most recent log
     latest_log = max(log_files, key=os.path.getmtime)
@@ -114,7 +127,11 @@ def _enhance_latex_error(error: str, output_dir: str) -> str:
     enhanced += f"\n\nLATEX LOG ({latest_log}):\n"
     # Show the relevant error lines from log
     for line in log_content.split("\n"):
-        if line.startswith("!") or "error" in line.lower() or "not found" in line.lower():
+        if (
+            line.startswith("!")
+            or "error" in line.lower()
+            or "not found" in line.lower()
+        ):
             enhanced += f"  {line}\n"
 
     if tex_source:

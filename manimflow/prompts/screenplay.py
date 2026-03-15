@@ -1,6 +1,5 @@
 """Prompts for the Screenplay — structured shot specification with semantic positioning."""
 
-
 SCREENPLAY_SYSTEM = """You are a technical animation director converting a visual story into structured shot specifications.
 
 You receive:

@@ -26,15 +26,18 @@ from ..prompts.writers_room import (
 
 # ─── DATA CLASSES ───
 
+
 @dataclass
 class ApprovedStory:
     """A story that passed review."""
+
     title: str
     story_text: str  # free-form detailed prose
     revision_count: int = 0
 
 
 # ─── XML PARSING HELPERS ───
+
 
 def _extract_xml_tag(text: str, tag: str) -> str:
     """Extract content between <tag>...</tag>."""
@@ -65,6 +68,7 @@ def _extract_selected_story(response: str) -> str:
 
 
 # ─── CORE FUNCTIONS ───
+
 
 @tracing.observe()
 async def _write_single_story(topic: str, audience: str) -> Agent:
@@ -111,7 +115,7 @@ async def review_stories(
     stories_block = ""
     for i, agent in enumerate(writer_agents):
         response_text = Agent.extract_text(agent.messages[-1]["content"])
-        stories_block += f"\n<STORY_{i+1}>\n{response_text}\n</STORY_{i+1}>\n"
+        stories_block += f"\n<STORY_{i + 1}>\n{response_text}\n</STORY_{i + 1}>\n"
 
     reviewer = Agent(system_prompt=STORY_REVIEWER_SYSTEM)
     reviewer.add_user_message(
@@ -169,6 +173,7 @@ async def revise_story(writer_agent: Agent, feedback: str) -> str:
 
 # ─── ORCHESTRATOR ───
 
+
 @tracing.observe()
 async def run_writers_room(
     topic: str,
@@ -195,7 +200,7 @@ async def run_writers_room(
     for i, agent in enumerate(writer_agents):
         response = Agent.extract_text(agent.messages[-1]["content"])
         title, story = _extract_story_output(response)
-        _log(f"  Writer {i+1}: \"{title}\"")
+        _log(f'  Writer {i + 1}: "{title}"')
         preview = story.split("\n")[0][:80] if story else "(empty)"
         _log(f"    {preview}...")
 
@@ -207,9 +212,12 @@ async def run_writers_room(
         _log(f"\n--- Writers Room: Review round {round_num + 1}/{t} ---")
 
         if round_num == 0:
-            reviewer_agent, winning_index, feedback_text, winning_agent = (
-                await review_stories(writer_agents, topic)
-            )
+            (
+                reviewer_agent,
+                winning_index,
+                feedback_text,
+                winning_agent,
+            ) = await review_stories(writer_agents, topic)
         else:
             revised_response = Agent.extract_text(winning_agent.messages[-1]["content"])
             reviewer_agent.add_user_message(
@@ -232,10 +240,10 @@ async def run_writers_room(
             if line and not line.startswith("<"):
                 _log(f"  {line[:100]}")
 
-        _log(f"\n--- Writers Room: Revising story ---")
+        _log("\n--- Writers Room: Revising story ---")
         revised_text = await revise_story(winning_agent, feedback_text)
         title, story = _extract_story_output(revised_text)
-        _log(f"  Revised: \"{title}\"")
+        _log(f'  Revised: "{title}"')
         preview = story.split("\n")[0][:80] if story else "(empty)"
         _log(f"    {preview}...")
 
@@ -246,7 +254,7 @@ async def run_writers_room(
     if not title:
         title = topic
 
-    _log(f"\n  Final story: \"{title}\" ({len(story_text)} chars)")
+    _log(f'\n  Final story: "{title}" ({len(story_text)} chars)')
 
     return ApprovedStory(
         title=title,

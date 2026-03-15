@@ -3,9 +3,12 @@
 from .writers_room import MANIM_MEDIUM_LIGHT
 
 
-DESIGN_SYSTEM_SYSTEM = """You are a visual designer for educational animation videos (like 3Blue1Brown, Kurzgesagt).
+DESIGN_SYSTEM_SYSTEM = (
+    """You are a visual designer for educational animation videos (like 3Blue1Brown, Kurzgesagt).
 
-""" + MANIM_MEDIUM_LIGHT + """
+"""
+    + MANIM_MEDIUM_LIGHT
+    + """
 
 You receive a complete story for an animated video. Your job is to:
 
@@ -58,3 +61,4 @@ Every animation with exact type and run_time.
 Every transition with exact cleanup.
 </visual_story>
 """
+)

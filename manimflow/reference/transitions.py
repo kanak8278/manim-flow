@@ -93,7 +93,9 @@ TRANSITION_VOCABULARY = {
 
 def get_transition_guide() -> str:
     """Generate a transition guide for the codegen prompt."""
-    lines = ["## TRANSITION VOCABULARY (use the right transition for each concept relationship):"]
+    lines = [
+        "## TRANSITION VOCABULARY (use the right transition for each concept relationship):"
+    ]
     for name, t in TRANSITION_VOCABULARY.items():
         lines.append(f"\n### {name.upper()}: {t['description']}")
         lines.append(f"Example: {t['example']}")

@@ -1,9 +1,8 @@
 """Manim code generation engine - turns a story script into working Manim code."""
 
-import json
 import logging
 
-from ..core.agent import Agent, call_llm, extract_code
+from ..core.agent import Agent, extract_code
 from ..reference.manim_reference import MANIM_API_REFERENCE
 from ..reference.transitions import get_transition_guide
 from ..reference.domain_knowledge import get_full_design_knowledge
@@ -65,13 +64,18 @@ _BASE_SYSTEM_PROMPT = (
     "Every shape must MEAN something. No decorative geometry.\n"
     "Use labeled concept cards, arrows, and diagrams — not random shapes.\n\n"
     + MANIM_API_REFERENCE
-    + "\n" + _TECHNICAL_RULES
-    + "\n" + get_full_design_knowledge()
-    + "\n" + get_transition_guide()
+    + "\n"
+    + _TECHNICAL_RULES
+    + "\n"
+    + get_full_design_knowledge()
+    + "\n"
+    + get_transition_guide()
 )
 
 # Without knowledge tool (backward compat for call_llm path)
-CODEGEN_SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT + "\nReturn ONLY Python code. No markdown.\n"
+CODEGEN_SYSTEM_PROMPT = (
+    _BASE_SYSTEM_PROMPT + "\nReturn ONLY Python code. No markdown.\n"
+)
 
 
 def _build_codegen_system_prompt() -> str:
@@ -79,7 +83,8 @@ def _build_codegen_system_prompt() -> str:
     knowledge_ctx = get_knowledge_system_context()
     return (
         _BASE_SYSTEM_PROMPT
-        + "\n" + knowledge_ctx
+        + "\n"
+        + knowledge_ctx
         + "\nSearch the knowledge base for relevant patterns BEFORE writing code."
         "\nReturn ONLY Python code. No markdown.\n"
     )
@@ -129,7 +134,9 @@ async def fix_manim_code(code: str, error: str) -> str:
         _build_codegen_system_prompt()
         + "\n\nFix the broken code. Return ONLY complete Python."
     )
-    user_prompt = "Fix:\n```python\n" + code + "\n```\nERROR:\n" + error + "\n\nReturn ONLY code."
+    user_prompt = (
+        "Fix:\n```python\n" + code + "\n```\nERROR:\n" + error + "\n\nReturn ONLY code."
+    )
 
     agent = Agent(system_prompt=system)
     agent.add_user_message(user_prompt)

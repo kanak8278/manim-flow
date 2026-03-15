@@ -17,6 +17,7 @@ from ..prompts.design_system import DESIGN_SYSTEM_SYSTEM
 @dataclass
 class DesignedStory:
     """Story with complete visual specifications."""
+
     title: str
     design_rules: str  # global rules (palette, typography, etc.)
     visual_story: str  # enriched prose with all visual details
@@ -72,7 +73,10 @@ async def design_story(title: str, story_text: str) -> DesignedStory:
             visual_story = response_text
 
     if not design_rules:
-        if "DESIGN RULES" in response_text.upper() or "PALETTE" in response_text.upper():
+        if (
+            "DESIGN RULES" in response_text.upper()
+            or "PALETTE" in response_text.upper()
+        ):
             parts = re.split(r"(?i)visual.?story", response_text, maxsplit=1)
             if len(parts) > 1:
                 design_rules = parts[0].strip()
@@ -87,7 +91,7 @@ async def design_story(title: str, story_text: str) -> DesignedStory:
 
 def print_designed_story(ds: DesignedStory):
     """Pretty-print a designed story summary."""
-    print(f"\n--- Design System: \"{ds.title}\" ---")
+    print(f'\n--- Design System: "{ds.title}" ---')
     print(f"  Design rules: {len(ds.design_rules)} chars")
     print(f"  Visual story: {len(ds.visual_story)} chars")
 

@@ -47,7 +47,6 @@ CATEGORIES = {
         ),
         recommended_duration=120,
     ),
-
     "how_it_works": ContentCategory(
         id="how_it_works",
         name="How Does It Work?",
@@ -72,7 +71,6 @@ CATEGORIES = {
         ),
         recommended_duration=180,
     ),
-
     "proof": ContentCategory(
         id="proof",
         name="Why Is This True?",
@@ -97,7 +95,6 @@ CATEGORIES = {
         ),
         recommended_duration=180,
     ),
-
     "what_if": ContentCategory(
         id="what_if",
         name="What If?",
@@ -123,7 +120,6 @@ CATEGORIES = {
         ),
         recommended_duration=180,
     ),
-
     "formula": ContentCategory(
         id="formula",
         name="Famous Formula",
@@ -149,7 +145,6 @@ CATEGORIES = {
         ),
         recommended_duration=120,
     ),
-
     "visual_beauty": ContentCategory(
         id="visual_beauty",
         name="Mathematical Beauty",
@@ -177,7 +172,6 @@ CATEGORIES = {
         ),
         recommended_duration=120,
     ),
-
     "quick_fact": ContentCategory(
         id="quick_fact",
         name="Quick Math Fact",
@@ -215,19 +209,29 @@ def suggest_category(topic: str) -> str:
     topic_lower = topic.lower()
 
     # Keyword-based matching
-    if any(w in topic_lower for w in ["paradox", "surprise", "impossible", "infinity", "0.999"]):
+    if any(
+        w in topic_lower
+        for w in ["paradox", "surprise", "impossible", "infinity", "0.999"]
+    ):
         return "mind_blown"
     if any(w in topic_lower for w in ["how does", "how do", "mechanism", "process"]):
         return "how_it_works"
     if any(w in topic_lower for w in ["why", "prove", "proof", "derive", "derivation"]):
         return "proof"
-    if any(w in topic_lower for w in ["what if", "what happens", "imagine", "hypothetical"]):
+    if any(
+        w in topic_lower for w in ["what if", "what happens", "imagine", "hypothetical"]
+    ):
         return "what_if"
     if any(w in topic_lower for w in ["equation", "formula", "= ", "e = mc"]):
         return "formula"
-    if any(w in topic_lower for w in ["curve", "beautiful", "visual", "pattern", "fractal"]):
+    if any(
+        w in topic_lower for w in ["curve", "beautiful", "visual", "pattern", "fractal"]
+    ):
         return "visual_beauty"
-    if any(w in topic_lower for w in ["quick", "fact", "simple", "why can't", "what is the"]):
+    if any(
+        w in topic_lower
+        for w in ["quick", "fact", "simple", "why can't", "what is the"]
+    ):
         return "quick_fact"
 
     # Default to standard explainer

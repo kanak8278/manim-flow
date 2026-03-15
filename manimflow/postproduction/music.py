@@ -61,8 +61,9 @@ def select_mood(category: str) -> str:
     return "ambient_curious"
 
 
-def generate_ambient_track(output_path: str, duration: float,
-                           mood: str = "ambient_curious") -> dict:
+def generate_ambient_track(
+    output_path: str, duration: float, mood: str = "ambient_curious"
+) -> dict:
     """Generate a simple ambient background track using ffmpeg.
 
     This creates a basic sine-wave pad as placeholder music.
@@ -71,7 +72,7 @@ def generate_ambient_track(output_path: str, duration: float,
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
     mood_config = MUSIC_MOODS.get(mood, MUSIC_MOODS["ambient_curious"])
-    bpm = mood_config["bpm"]
+    mood_config["bpm"]
 
     # Generate a quiet ambient drone using ffmpeg's audio synthesis
     # Multiple sine waves at different frequencies for a pad-like sound
@@ -83,28 +84,35 @@ def generate_ambient_track(output_path: str, duration: float,
         "gentle_wonder": "330:v=0.02|495:v=0.015|660:v=0.01",
     }
 
-    freq_str = frequencies.get(mood, frequencies["ambient_curious"])
+    frequencies.get(mood, frequencies["ambient_curious"])
 
     # Generate layered ambient pad with multiple frequencies for richer sound
     # Base note + fifth + octave creates a pleasant chord
     base_freqs = {
-        "ambient_curious": (220, 330, 440),     # A minor chord
-        "building_tension": (146, 220, 293),     # D minor
-        "upbeat_playful": (261, 329, 392),       # C major
-        "dramatic_reveal": (174, 220, 293),      # F minor
-        "gentle_wonder": (261, 392, 523),        # C major (higher)
+        "ambient_curious": (220, 330, 440),  # A minor chord
+        "building_tension": (146, 220, 293),  # D minor
+        "upbeat_playful": (261, 329, 392),  # C major
+        "dramatic_reveal": (174, 220, 293),  # F minor
+        "gentle_wonder": (261, 392, 523),  # C major (higher)
     }
     freqs = base_freqs.get(mood, (220, 330, 440))
     fade_out_start = max(0, duration - 3)
 
     # Generate three sine waves and mix them for a pad-like sound
     cmd = [
-        "ffmpeg", "-y",
-        "-f", "lavfi", "-i",
+        "ffmpeg",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
         f"sine=frequency={freqs[0]}:sample_rate=44100:duration={duration}",
-        "-f", "lavfi", "-i",
+        "-f",
+        "lavfi",
+        "-i",
         f"sine=frequency={freqs[1]}:sample_rate=44100:duration={duration}",
-        "-f", "lavfi", "-i",
+        "-f",
+        "lavfi",
+        "-i",
         f"sine=frequency={freqs[2]}:sample_rate=44100:duration={duration}",
         "-filter_complex",
         f"[0:a]volume=0.03[a];"
@@ -114,8 +122,12 @@ def generate_ambient_track(output_path: str, duration: float,
         f"[mixed]lowpass=f=2000,highpass=f=80,"
         f"afade=t=in:st=0:d=3,"
         f"afade=t=out:st={fade_out_start}:d=3[out]",
-        "-map", "[out]",
-        "-c:a", "libmp3lame", "-q:a", "4",
+        "-map",
+        "[out]",
+        "-c:a",
+        "libmp3lame",
+        "-q:a",
+        "4",
         output_path,
     ]
 
@@ -127,22 +139,30 @@ def generate_ambient_track(output_path: str, duration: float,
     return {"success": True, "path": output_path, "duration": duration, "mood": mood}
 
 
-def mix_audio_tracks(voiceover_path: str, music_path: str,
-                     output_path: str, music_volume: float = 0.15) -> dict:
+def mix_audio_tracks(
+    voiceover_path: str, music_path: str, output_path: str, music_volume: float = 0.15
+) -> dict:
     """Mix voiceover with background music, ducking music under speech.
 
     Uses ffmpeg's sidechaincompress to automatically lower music when speech is present.
     """
     cmd = [
-        "ffmpeg", "-y",
-        "-i", voiceover_path,
-        "-i", music_path,
+        "ffmpeg",
+        "-y",
+        "-i",
+        voiceover_path,
+        "-i",
+        music_path,
         "-filter_complex",
         f"[1:a]volume={music_volume}[music];"
         f"[music][0:a]sidechaincompress=threshold=0.02:ratio=6:attack=200:release=1000[ducked];"
         f"[0:a][ducked]amix=inputs=2:duration=first[out]",
-        "-map", "[out]",
-        "-c:a", "libmp3lame", "-q:a", "2",
+        "-map",
+        "[out]",
+        "-c:a",
+        "libmp3lame",
+        "-q:a",
+        "2",
         output_path,
     ]
 
@@ -151,13 +171,20 @@ def mix_audio_tracks(voiceover_path: str, music_path: str,
     if result.returncode != 0:
         # Fallback: simple mix without ducking
         cmd_simple = [
-            "ffmpeg", "-y",
-            "-i", voiceover_path,
-            "-i", music_path,
+            "ffmpeg",
+            "-y",
+            "-i",
+            voiceover_path,
+            "-i",
+            music_path,
             "-filter_complex",
             f"[1:a]volume={music_volume}[music];[0:a][music]amix=inputs=2:duration=first[out]",
-            "-map", "[out]",
-            "-c:a", "libmp3lame", "-q:a", "2",
+            "-map",
+            "[out]",
+            "-c:a",
+            "libmp3lame",
+            "-q:a",
+            "2",
             output_path,
         ]
         result = subprocess.run(cmd_simple, capture_output=True, text=True)

@@ -16,7 +16,6 @@ Usage:
 
 import asyncio
 import os
-import ssl
 from pathlib import Path
 
 from manim import logger

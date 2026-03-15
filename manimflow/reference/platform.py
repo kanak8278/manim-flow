@@ -4,7 +4,7 @@ This is the control layer between the user's intent and the generation pipeline.
 It determines: duration, pacing, complexity, visual style, music, transitions.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -131,9 +131,13 @@ def get_platform_config(preset: str) -> PlatformConfig:
 
 def config_to_story_context(config: PlatformConfig) -> str:
     """Convert platform config into story generation context."""
-    lines = [f"TARGET PLATFORM & AUDIENCE:"]
-    lines.append(f"- Format: {config.format} ({config.duration_seconds}s, {config.aspect_ratio})")
-    lines.append(f"- Audience: {config.audience} (age {config.age_group}, prior knowledge: {config.prior_knowledge})")
+    lines = ["TARGET PLATFORM & AUDIENCE:"]
+    lines.append(
+        f"- Format: {config.format} ({config.duration_seconds}s, {config.aspect_ratio})"
+    )
+    lines.append(
+        f"- Audience: {config.audience} (age {config.age_group}, prior knowledge: {config.prior_knowledge})"
+    )
     lines.append(f"- Tone: {config.tone}, humor level: {config.humor_level}/3")
     lines.append(f"- Language: {config.language_level}")
 
@@ -153,7 +157,9 @@ def config_to_story_context(config: PlatformConfig) -> str:
         lines.append("- Make characters/objects anthropomorphic when possible.")
         lines.append("- Celebrate the 'wow' moments with big visual effects.")
     elif config.audience == "student":
-        lines.append("- Be precise with terminology but explain each term on first use.")
+        lines.append(
+            "- Be precise with terminology but explain each term on first use."
+        )
         lines.append("- Connect to exam-relevant concepts where appropriate.")
         lines.append("- Show problem-solving steps explicitly.")
     elif config.audience == "expert":
@@ -163,9 +169,13 @@ def config_to_story_context(config: PlatformConfig) -> str:
 
     # Visual density
     if config.animation_density == "dense":
-        lines.append("- Visual changes every 2-3 seconds. Dynamic, energetic animations.")
+        lines.append(
+            "- Visual changes every 2-3 seconds. Dynamic, energetic animations."
+        )
     elif config.animation_density == "sparse":
-        lines.append("- Clean, focused visuals. One element at a time. Let breathing room.")
+        lines.append(
+            "- Clean, focused visuals. One element at a time. Let breathing room."
+        )
 
     return "\n".join(lines)
 

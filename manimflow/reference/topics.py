@@ -49,7 +49,6 @@ TOPIC_LIBRARY = {
             "hook": "Your math teacher said 'just memorize it.' Here's why it HAS to be true.",
         },
     ],
-
     "proof": [
         {
             "topic": "Why is the area of a circle pi*r^2? Visual proof.",
@@ -76,7 +75,6 @@ TOPIC_LIBRARY = {
             "hook": "A 10-year-old Gauss figured this out in seconds. Here's how.",
         },
     ],
-
     "formula": [
         {
             "topic": "E = mc^2: What does it really mean?",
@@ -103,7 +101,6 @@ TOPIC_LIBRARY = {
             "hook": "One equation describes ocean waves, guitar strings, and light itself.",
         },
     ],
-
     "how_it_works": [
         {
             "topic": "How does GPS use relativity to find your location?",
@@ -124,7 +121,6 @@ TOPIC_LIBRARY = {
             "hook": "You can publish the lock, keep the key, and nobody can break in.",
         },
     ],
-
     "visual_beauty": [
         {
             "topic": "The butterfly curve — chaos becomes beauty",
@@ -145,7 +141,6 @@ TOPIC_LIBRARY = {
             "hook": "What happens when two sine waves collide? Art.",
         },
     ],
-
     "what_if": [
         {
             "topic": "What if pi was exactly 3?",
@@ -166,7 +161,6 @@ TOPIC_LIBRARY = {
             "hook": "The coldest possible temperature... that you can never actually reach.",
         },
     ],
-
     "quick_fact": [
         {
             "topic": "Why can't you divide by zero?",
@@ -225,7 +219,14 @@ TOPIC: {topic}
 Return JSON: {{"intuition_score": N, "visual_score": N, "combined": N, "suggested_category": "category_id", "hook_suggestion": "one-line hook"}}"""
 
     try:
-        response = await call_llm("You are a content strategist for educational math/physics videos.", prompt)
+        response = await call_llm(
+            "You are a content strategist for educational math/physics videos.", prompt
+        )
         return extract_json(response)
     except Exception:
-        return {"intuition_score": 5, "visual_score": 5, "combined": 25, "suggested_category": "formula"}
+        return {
+            "intuition_score": 5,
+            "visual_score": 5,
+            "combined": 25,
+            "suggested_category": "formula",
+        }

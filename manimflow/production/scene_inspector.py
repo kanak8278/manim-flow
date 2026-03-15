@@ -13,17 +13,15 @@ Usage:
     # after each self.play() call
 """
 
-import re
-import sys
 import types
-import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from contextlib import contextmanager
 
 
 @dataclass
 class ElementGeometry:
     """Exact geometry of a Manim object at a point in time."""
+
     name: str  # variable name in code
     center_x: float
     center_y: float
@@ -86,6 +84,7 @@ class ElementGeometry:
 @dataclass
 class SceneSnapshot:
     """State of the scene at a point in time (after an animation completes)."""
+
     step: int  # which self.play() call this is after
     description: str  # what animation triggered this snapshot
     elements: dict[str, ElementGeometry]  # name → geometry for all visible objects
@@ -120,7 +119,7 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
         List of SceneSnapshot — one per self.play() call + initial state
     """
     try:
-        from manim import Scene, Mobject, VGroup, config
+        from manim import Scene, Mobject, VGroup, config  # noqa: F401 — used in exec() scope
         from manim.animation.animation import Animation
         from manim.animation.fading import FadeOut, FadeIn
         from manim.animation.creation import Create, Write, DrawBorderThenFill
@@ -132,7 +131,6 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
 
     snapshots = []
     step_counter = [0]
-    visible_objects = {}  # name → mobject
     all_local_vars = {}  # track all variables
 
     class MockScene:
@@ -140,9 +138,7 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
 
         def __init__(self):
             self.mobjects = []
-            self.camera = types.SimpleNamespace(
-                background_color=None
-            )
+            self.camera = types.SimpleNamespace(background_color=None)
 
         def add(self, *mobs):
             for m in mobs:
@@ -174,7 +170,9 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
                     mob = anim.mobject
                     self.remove(mob)
 
-                elif isinstance(anim, (FadeIn, Create, Write, DrawBorderThenFill, GrowFromCenter)):
+                elif isinstance(
+                    anim, (FadeIn, Create, Write, DrawBorderThenFill, GrowFromCenter)
+                ):
                     # Add to scene at current position
                     mob = anim.mobject
                     self.add(mob)
@@ -203,7 +201,10 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
                     # Generic animation (including _MethodAnimation from .animate)
                     # Apply target state if available
                     mob = anim.mobject
-                    if hasattr(anim, 'target_mobject') and anim.target_mobject is not None:
+                    if (
+                        hasattr(anim, "target_mobject")
+                        and anim.target_mobject is not None
+                    ):
                         try:
                             mob.become(anim.target_mobject)
                         except Exception:
@@ -240,7 +241,7 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
             if a is None:
                 continue
             name = type(a).__name__
-            mob_name = type(a.mobject).__name__ if hasattr(a, 'mobject') else '?'
+            mob_name = type(a.mobject).__name__ if hasattr(a, "mobject") else "?"
             parts.append(f"{name}({mob_name})")
         return ", ".join(parts) if parts else "unknown"
 
@@ -250,9 +251,9 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
         # Map mobjects back to their variable names
         mob_to_name = {}
         for var_name, var_val in local_vars.items():
-            if var_name.startswith('_') or var_name in ('self', 'tracker', 'make_card'):
+            if var_name.startswith("_") or var_name in ("self", "tracker", "make_card"):
                 continue
-            if hasattr(var_val, 'get_center'):
+            if hasattr(var_val, "get_center"):
                 mob_to_name[id(var_val)] = var_name
 
         for mob in mock_scene.mobjects:
@@ -276,9 +277,6 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
 
         # Execute imports and helper functions from the original code
         import_lines = []
-        helper_lines = []
-        in_helper = False
-        helper_indent = 0
 
         for line in code.split("\n"):
             stripped = line.strip()
@@ -297,7 +295,9 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
 
         # Add mocks for common services that aren't available
         class _MockService:
-            def __init__(self, *a, **kw): pass
+            def __init__(self, *a, **kw):
+                pass
+
         exec_ns["EdgeTTSService"] = _MockService
         exec_ns["VoiceoverScene"] = type(
             "VoiceoverScene", (exec_ns.get("Scene", object),), {}
@@ -312,8 +312,7 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
             stripped = line.strip()
             if stripped.startswith("def "):
                 # Found a helper function — execute it
-                func_lines = [line]
-                func_indent = len(line) - len(line.lstrip())
+                len(line) - len(line.lstrip())
                 continue
 
         # Execute the full construct body line by line, capturing locals
@@ -321,28 +320,30 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
         try:
             exec(construct_body, exec_ns)
         except Exception as e:
-            snapshots.append(SceneSnapshot(
-                step=step_counter[0] + 1,
-                description=f"ERROR at step {step_counter[0]+1}: {type(e).__name__}: {e}",
-                elements={},
-            ))
+            snapshots.append(
+                SceneSnapshot(
+                    step=step_counter[0] + 1,
+                    description=f"ERROR at step {step_counter[0] + 1}: {type(e).__name__}: {e}",
+                    elements={},
+                )
+            )
 
         # Map variable names to mobjects for better snapshot names
         for var_name, var_val in exec_ns.items():
-            if var_name.startswith('_') or var_name in ('self', '__builtins__'):
+            if var_name.startswith("_") or var_name in ("self", "__builtins__"):
                 continue
-            if hasattr(var_val, 'get_center'):
+            if hasattr(var_val, "get_center"):
                 all_local_vars[var_name] = var_val
 
         # Retake final snapshot with variable names resolved
         if snapshots:
-            last = snapshots[-1]
+            snapshots[-1]
             # Re-resolve names from exec namespace
             mob_to_name = {}
             for var_name, var_val in exec_ns.items():
-                if var_name.startswith('_') or var_name in ('self', '__builtins__'):
+                if var_name.startswith("_") or var_name in ("self", "__builtins__"):
                     continue
-                if hasattr(var_val, 'get_center'):
+                if hasattr(var_val, "get_center"):
                     mob_to_name[id(var_val)] = var_name
 
             # Update element names in all snapshots
@@ -352,12 +353,14 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
                     # Try to find a better name
                     new_name = old_name
                     for mob in mock.mobjects + list(exec_ns.values()):
-                        if not hasattr(mob, 'get_center'):
+                        if not hasattr(mob, "get_center"):
                             continue
                         try:
                             c = mob.get_center()
-                            if (abs(c[0] - geom.center_x) < 0.01
-                                    and abs(c[1] - geom.center_y) < 0.01):
+                            if (
+                                abs(c[0] - geom.center_x) < 0.01
+                                and abs(c[1] - geom.center_y) < 0.01
+                            ):
                                 vid = id(mob)
                                 if vid in mob_to_name:
                                     new_name = mob_to_name[vid]
@@ -375,11 +378,13 @@ def inspect_scene(code: str) -> list[SceneSnapshot]:
                 snap.elements = updated
 
     except Exception as e:
-        snapshots.append(SceneSnapshot(
-            step=step_counter[0] + 1,
-            description=f"ERROR: {type(e).__name__}: {e}",
-            elements={},
-        ))
+        snapshots.append(
+            SceneSnapshot(
+                step=step_counter[0] + 1,
+                description=f"ERROR: {type(e).__name__}: {e}",
+                elements={},
+            )
+        )
 
     return snapshots
 
@@ -425,6 +430,8 @@ def print_snapshots(snapshots: list[SceneSnapshot]):
         elem_count = len(snap.elements)
         print(f"\n  Step {snap.step}: {snap.description} ({elem_count} elements)")
         for name, geom in snap.elements.items():
-            print(f"    {name}: {geom.obj_type} at ({geom.center_x:.1f}, {geom.center_y:.1f}) "
-                  f"size={geom.width:.1f}x{geom.height:.1f}"
-                  f"{' [OFF-SCREEN]' if geom.is_offscreen() else ''}")
+            print(
+                f"    {name}: {geom.obj_type} at ({geom.center_x:.1f}, {geom.center_y:.1f}) "
+                f"size={geom.width:.1f}x{geom.height:.1f}"
+                f"{' [OFF-SCREEN]' if geom.is_offscreen() else ''}"
+            )

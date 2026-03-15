@@ -55,35 +55,41 @@ Categories:
         help="Math/physics question, equation, or concept to explain",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default=None,
         help="Output directory (default: output/<timestamp>)",
     )
     parser.add_argument(
-        "--quality", "-q",
+        "--quality",
+        "-q",
         choices=["l", "m", "h", "k"],
         default="l",
         help="Render quality: l=480p, m=720p, h=1080p, k=4K (default: l)",
     )
     parser.add_argument(
-        "--preview", "-p",
+        "--preview",
+        "-p",
         action="store_true",
         help="Open video after rendering",
     )
     parser.add_argument(
-        "--duration", "-d",
+        "--duration",
+        "-d",
         type=int,
         default=120,
         help="Target duration: 60=short, 120=standard, 300=deep, 480=long (default: 120)",
     )
     parser.add_argument(
-        "--category", "-c",
+        "--category",
+        "-c",
         choices=list(CATEGORIES.keys()),
         default=None,
         help="Content category (auto-detected if omitted)",
     )
     parser.add_argument(
-        "--voice", "-v",
+        "--voice",
+        "-v",
         choices=["male_us", "female_us", "male_uk", "female_uk", "male_au", "none"],
         default="male_us",
         help="Voiceover voice (default: male_us, use 'none' to disable)",
@@ -111,31 +117,34 @@ Categories:
     # Auto-generate output dir from timestamp if not provided
     if args.output is None:
         from datetime import datetime
+
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         args.output = f"output/{ts}"
 
-    result = asyncio.run(generate_video(
-        topic=args.topic,
-        output_dir=args.output,
-        quality=args.quality,
-        duration=args.duration,
-        category=args.category,
-        voice=args.voice if args.voice != "none" else None,
-        max_fix_attempts=args.max_fix_attempts,
-        max_quality_loops=args.max_quality_loops,
-        preview=args.preview,
-        verbose=not args.quiet,
-    ))
+    result = asyncio.run(
+        generate_video(
+            topic=args.topic,
+            output_dir=args.output,
+            quality=args.quality,
+            duration=args.duration,
+            category=args.category,
+            voice=args.voice if args.voice != "none" else None,
+            max_fix_attempts=args.max_fix_attempts,
+            max_quality_loops=args.max_quality_loops,
+            preview=args.preview,
+            verbose=not args.quiet,
+        )
+    )
 
     if result["success"]:
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"VIDEO READY: {result['video_path']}")
         print(f"  Story:    {result['story_path']}")
         print(f"  Code:     {result['code_path']}")
         print(f"  Category: {result.get('story', {}).get('category', 'auto')}")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
     else:
-        print(f"\nGeneration failed")
+        print("\nGeneration failed")
         print(f"  Last error: {result.get('error', 'unknown')[:200]}")
         sys.exit(1)
 
@@ -159,7 +168,9 @@ def _print_topics(category: str | None, count: int):
         score = t["intuition_score"] * t["visual_score"]
         print(f"  {i:2d}. [{score:3d}] {t['topic']}")
         print(f"      Hook: {t['hook']}")
-        print(f"      Intuition: {t['intuition_score']}/10 | Visual: {t['visual_score']}/10")
+        print(
+            f"      Intuition: {t['intuition_score']}/10 | Visual: {t['visual_score']}/10"
+        )
         print()
 
 

@@ -75,11 +75,16 @@ But the AHA must ALWAYS be the most visually dynamic moment.
 
 # ─── STORY WRITER SYSTEM PROMPT ───
 
-STORY_WRITER_SYSTEM = """You are a world-class educational animation writer.
+STORY_WRITER_SYSTEM = (
+    """You are a world-class educational animation writer.
 
-""" + MANIM_MEDIUM_LIGHT + """
+"""
+    + MANIM_MEDIUM_LIGHT
+    + """
 
-""" + BEAT_STRUCTURE + """
+"""
+    + BEAT_STRUCTURE
+    + """
 
 You write stories for animated explainer videos. Your stories describe EVERYTHING
 that happens in the video in incredible detail — nothing is left to guess.
@@ -102,15 +107,21 @@ Output format:
 Your complete, detailed story here...
 </story>
 """
+)
 
 
 # ─── STORY REVIEWER SYSTEM PROMPT ───
 
-STORY_REVIEWER_SYSTEM = """You are a senior creative director reviewing stories for educational animation videos.
+STORY_REVIEWER_SYSTEM = (
+    """You are a senior creative director reviewing stories for educational animation videos.
 
-""" + MANIM_MEDIUM_LIGHT + """
+"""
+    + MANIM_MEDIUM_LIGHT
+    + """
 
-""" + BEAT_STRUCTURE + """
+"""
+    + BEAT_STRUCTURE
+    + """
 
 You review stories with two lenses:
 
@@ -135,3 +146,4 @@ When giving feedback:
   "use story 1's approach"
 - Explain WHY each change matters — the writer needs to understand the reasoning
 """
+)

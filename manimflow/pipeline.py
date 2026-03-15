@@ -11,17 +11,26 @@ import subprocess
 
 from .preproduction.writers_room import run_writers_room
 from .preproduction.design_system import design_story, print_designed_story
-from .preproduction.screenplay import write_screenplay, screenplay_to_codegen_context, print_screenplay
-from .preproduction.screenplay_validator import validate_screenplay, print_validation
+from .preproduction.screenplay import (
+    write_screenplay,
+    screenplay_to_codegen_context,
+    print_screenplay,
+)
+from .preproduction.screenplay_validator import validate_screenplay
 from .production.codegen import generate_manim_code, fix_manim_code
 from .production.code_sanitizer import sanitize_code
 from .production.renderer import render_scene, validate_code
-from .production.spatial_analyzer import analyze_scene, print_spatial_analysis
 from .production.scene_inspector import inspect_scene
-from .production.layout_checker import check_layout, format_issues_for_codegen, print_layout_check
+from .production.layout_checker import (
+    check_layout,
+    format_issues_for_codegen,
+    print_layout_check,
+)
 from .production.code_editor import surgical_fix
 from .postproduction.evaluator import (
-    static_code_checks, evaluate_frames_with_code, evaluate_video_frames,
+    static_code_checks,
+    evaluate_frames_with_code,
+    evaluate_video_frames,
     print_evaluation,
 )
 from .postproduction.voiceover import merge_video_audio
@@ -56,7 +65,11 @@ async def generate_video(
     _log(f"\nTopic: {topic}")
 
     # Platform config
-    platform_config = get_platform_config(platform) if platform else PlatformConfig(duration_seconds=duration)
+    platform_config = (
+        get_platform_config(platform)
+        if platform
+        else PlatformConfig(duration_seconds=duration)
+    )
     if platform:
         duration = platform_config.duration_seconds
         if not voice and platform_config.voice:
@@ -75,7 +88,7 @@ async def generate_video(
         t=1,
         verbose=verbose,
     )
-    _log(f"\n  Story: \"{approved.title}\" ({len(approved.story_text)} chars)")
+    _log(f'\n  Story: "{approved.title}" ({len(approved.story_text)} chars)')
 
     story_path = os.path.join(output_dir, "story.json")
     with open(story_path, "w") as f:
@@ -89,11 +102,15 @@ async def generate_video(
 
     visual_story_path = os.path.join(output_dir, "visual_story.json")
     with open(visual_story_path, "w") as f:
-        json.dump({
-            "title": designed.title,
-            "design_rules": designed.design_rules,
-            "visual_story": designed.visual_story,
-        }, f, indent=2)
+        json.dump(
+            {
+                "title": designed.title,
+                "design_rules": designed.design_rules,
+                "visual_story": designed.visual_story,
+            },
+            f,
+            indent=2,
+        )
 
     # === Step 3: Screenplay (structured shots + validation loop) ===
     _log("\n--- Step 3: Screenplay ---")
@@ -112,9 +129,12 @@ async def generate_video(
         "design_rules": sp.design_rules,
         "shots": [
             {
-                "id": s.id, "narration": s.narration, "elements": s.elements,
+                "id": s.id,
+                "narration": s.narration,
+                "elements": s.elements,
                 "animation_sequence": s.animation_sequence,
-                "cleanup": s.cleanup, "persists": s.persists,
+                "cleanup": s.cleanup,
+                "persists": s.persists,
             }
             for s in sp.shots
         ],
@@ -125,7 +145,9 @@ async def generate_video(
 
     # Final screenplay validation
     validation = validate_screenplay(sp_data)
-    _log(f"  Screenplay: {len(sp.shots)} shots, {validation['errors']} errors, {validation['warnings']} warnings")
+    _log(
+        f"  Screenplay: {len(sp.shots)} shots, {validation['errors']} errors, {validation['warnings']} warnings"
+    )
 
     # Build context for codegen
     codegen_context = screenplay_to_codegen_context(sp)
@@ -179,7 +201,9 @@ async def generate_video(
         layout_issues = check_layout(sp_data, snapshots)
         layout_errors = [i for i in layout_issues if i.severity == "error"]
         layout_warnings = [i for i in layout_issues if i.severity == "warning"]
-        _log(f"  Inspected {len(snapshots)} steps: {len(layout_errors)} errors, {len(layout_warnings)} warnings")
+        _log(
+            f"  Inspected {len(snapshots)} steps: {len(layout_errors)} errors, {len(layout_warnings)} warnings"
+        )
 
         if layout_errors:
             if verbose:
@@ -195,7 +219,9 @@ async def generate_video(
 
     # === Step 5: Render with Auto-Fix Loop ===
     _log("\n--- Step 5: Rendering video ---")
-    render_result = await _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+    render_result = await _render_with_fixes(
+        code, output_dir, quality, max_fix_attempts, _log
+    )
 
     if not render_result["success"]:
         tracing.flush()
@@ -235,7 +261,9 @@ async def generate_video(
                 if visual_score:
                     _log(f"  Vision score: {visual_score}/10")
                 if visual_issues:
-                    vision_feedback = visual_issues + [f"SEMANTIC: {s}" for s in semantic_issues]
+                    vision_feedback = visual_issues + [
+                        f"SEMANTIC: {s}" for s in semantic_issues
+                    ]
             except Exception as e:
                 _log(f"  Vision eval failed: {e}")
 
@@ -250,7 +278,8 @@ async def generate_video(
         if not isinstance(overall, (int, float)) or overall == 0:
             scores = evaluation.get("scores", {})
             score_vals = [
-                s.get("score", 5) for s in scores.values()
+                s.get("score", 5)
+                for s in scores.values()
                 if isinstance(s, dict) and isinstance(s.get("score"), (int, float))
             ]
             if score_vals:
@@ -274,7 +303,9 @@ async def generate_video(
             suggestions = evaluation.get("suggestions", [])
             all_feedback = critical[:5] + suggestions[:3]
             if vision_feedback:
-                all_feedback = [f"[VISION] {v}" for v in vision_feedback[:5]] + all_feedback[:3]
+                all_feedback = [
+                    f"[VISION] {v}" for v in vision_feedback[:5]
+                ] + all_feedback[:3]
 
             feedback = "Fix these issues:\n" + "\n".join(all_feedback)
 
@@ -287,7 +318,9 @@ async def generate_video(
             with open(code_path, "w") as f:
                 f.write(code)
 
-            render_result = await _render_with_fixes(code, output_dir, quality, max_fix_attempts, _log)
+            render_result = await _render_with_fixes(
+                code, output_dir, quality, max_fix_attempts, _log
+            )
             if render_result["success"]:
                 code = render_result["code"]
                 video_path = render_result["video_path"]
@@ -318,16 +351,30 @@ async def generate_video(
                 final_path = os.path.join(output_dir, f"{title_slug}_FINAL.mp4")
 
                 vo_extract = os.path.join(vo_dir, "voiceover_extracted.mp3")
-                subprocess.run([
-                    "ffmpeg", "-y", "-i", video_path,
-                    "-vn", "-c:a", "libmp3lame", "-q:a", "2", vo_extract,
-                ], capture_output=True, text=True)
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        video_path,
+                        "-vn",
+                        "-c:a",
+                        "libmp3lame",
+                        "-q:a",
+                        "2",
+                        vo_extract,
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
 
                 if os.path.exists(vo_extract) and os.path.getsize(vo_extract) > 1000:
                     mixed_path = os.path.join(vo_dir, "mixed_audio.mp3")
                     mix_result = mix_audio_tracks(vo_extract, music_path, mixed_path)
                     if mix_result.get("success"):
-                        merge_result = merge_video_audio(video_path, mixed_path, final_path)
+                        merge_result = merge_video_audio(
+                            video_path, mixed_path, final_path
+                        )
                         if merge_result["success"]:
                             final_video_path = final_path
                             _log(f"  Final video: {final_path}")
@@ -339,7 +386,9 @@ async def generate_video(
     try:
         _log("\n--- Step 8: Thumbnail ---")
         thumb_dir = os.path.join(output_dir, "thumbnail")
-        thumb_result = generate_thumbnail_with_title(video_path, thumb_dir, designed.title)
+        thumb_result = generate_thumbnail_with_title(
+            video_path, thumb_dir, designed.title
+        )
         if thumb_result.get("success"):
             thumbnail_path = thumb_result["path"]
             _log(f"  Thumbnail: {thumbnail_path}")
@@ -350,7 +399,11 @@ async def generate_video(
 
     # Score in Langfuse
     overall_score = evaluation.get("overall_score", 0)
-    if tracing.is_enabled() and isinstance(overall_score, (int, float)) and overall_score > 0:
+    if (
+        tracing.is_enabled()
+        and isinstance(overall_score, (int, float))
+        and overall_score > 0
+    ):
         tracing.score_trace("quality", overall_score / 10.0)
     tracing.flush()
 
@@ -373,7 +426,7 @@ async def _render_with_fixes(
     """Render loop: try to render, auto-fix on failure."""
     syntax = validate_code(code)
     if not syntax["valid"]:
-        _log(f"  Syntax error, fixing...")
+        _log("  Syntax error, fixing...")
         code = await fix_manim_code(code, syntax["error"])
 
     attempt = 0
@@ -399,7 +452,7 @@ async def _render_with_fixes(
                 _log(f"    {line}")
 
             if attempt < max_attempts:
-                _log(f"  Auto-fixing...")
+                _log("  Auto-fixing...")
                 code = await fix_manim_code(code, last_error)
                 code, _ = sanitize_code(code)
                 with open(os.path.join(output_dir, "scene.py"), "w") as f:

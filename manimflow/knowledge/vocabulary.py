@@ -28,7 +28,6 @@ DOMAINS = {
     "statistics",
     "game_theory",
     "fractal",
-
     # Physics
     "physics",
     "mechanics",
@@ -45,7 +44,6 @@ DOMAINS = {
     "collision",
     "gravity",
     "magnetism",
-
     # Computer Science
     "computer_science",
     "algorithms",
@@ -61,7 +59,6 @@ DOMAINS = {
     "error_correction",
     "automata",
     "formal_languages",
-
     # Machine Learning & AI
     "machine_learning",
     "neural_networks",
@@ -77,7 +74,6 @@ DOMAINS = {
     "attention_mechanism",
     "backpropagation",
     "activation_functions",
-
     # Applied / Other
     "finance",
     "economics",
@@ -110,7 +106,6 @@ ELEMENTS = {
     "coordinate_system",
     "polar_plot",
     "complex_plane",
-
     # Structural shapes
     "card",
     "box",
@@ -123,7 +118,6 @@ ELEMENTS = {
     "dot",
     "pixel",
     "pixel_grid",
-
     # Connectors
     "arrow",
     "curved_arrow",
@@ -134,7 +128,6 @@ ELEMENTS = {
     "bracket",
     "underline",
     "arc",
-
     # Graphs & Trees
     "tree",
     "binary_tree",
@@ -143,14 +136,12 @@ ELEMENTS = {
     "directed_graph",
     "state_machine",
     "markov_chain",
-
     # Flows & Sequences
     "pipeline",
     "flowchart",
     "timeline",
     "sequence",
     "process_diagram",
-
     # Mathematical
     "equation",
     "formula",
@@ -162,7 +153,6 @@ ELEMENTS = {
     "riemann_rectangles",
     "tangent_line",
     "area_under_curve",
-
     # Text
     "title",
     "subtitle",
@@ -172,7 +162,6 @@ ELEMENTS = {
     "bullet_list",
     "numbered_list",
     "caption",
-
     # Containers & Groups
     "group",
     "grid",
@@ -180,7 +169,6 @@ ELEMENTS = {
     "column",
     "section",
     "frame",
-
     # Indicators & Markers
     "pointer",
     "overlay",
@@ -189,14 +177,12 @@ ELEMENTS = {
     "cross_mark",
     "checkmark",
     "cursor",
-
     # Media & Assets
     "image",
     "svg_icon",
     "character",
     "pi_creature",
     "speech_bubble",
-
     # 3D Objects
     "cube",
     "sphere",
@@ -205,7 +191,6 @@ ELEMENTS = {
     "prism",
     "torus",
     "surface",
-
     # Physics-specific
     "wave",
     "oscillator",
@@ -216,7 +201,6 @@ ELEMENTS = {
     "battery",
     "led",
     "speaker",
-
     # ML-specific
     "neuron",
     "layer",
@@ -227,7 +211,6 @@ ELEMENTS = {
     "embedding_space",
     "attention_map",
     "token",
-
     # Chemistry-specific
     "molecule",
     "atom",
@@ -254,7 +237,6 @@ ANIMATIONS = {
     "dissolve",
     "pop_in",
     "spin_in",
-
     # Movement
     "move",
     "slide",
@@ -265,7 +247,6 @@ ANIMATIONS = {
     "move_along_path",
     "orbit",
     "bounce",
-
     # Transform
     "transform",
     "morph",
@@ -277,7 +258,6 @@ ANIMATIONS = {
     "reshape",
     "scale_up",
     "scale_down",
-
     # Emphasis
     "highlight",
     "indicate",
@@ -289,14 +269,12 @@ ANIMATIONS = {
     "undim",
     "glow",
     "passing_flash",
-
     # Connectors
     "connect",
     "disconnect",
     "grow_arrow",
     "trace_line",
     "trace_path",
-
     # Data-driven
     "update_value",
     "animate_parameter",
@@ -304,7 +282,6 @@ ANIMATIONS = {
     "count_down",
     "progress_bar",
     "sweep",
-
     # Sequencing
     "stagger",
     "cascade",
@@ -312,7 +289,6 @@ ANIMATIONS = {
     "one_by_one",
     "simultaneous",
     "wave_effect",
-
     # Camera
     "zoom_in",
     "zoom_out",
@@ -320,12 +296,10 @@ ANIMATIONS = {
     "focus",
     "camera_rotate",
     "camera_follow",
-
     # Rotation
     "rotate",
     "spin",
     "flip",
-
     # Scene-level
     "clear_screen",
     "scene_transition",
@@ -369,44 +343,37 @@ TECHNIQUES = {
     "always_redraw",
     "add_updater",
     "update_from_alpha_func",
-
     # Camera
     "moving_camera",
     "zoomed_scene",
     "camera_save_restore",
     "ambient_camera_rotation",
     "three_d_camera",
-
     # Scene types
     "voiceover_scene",
     "interactive_scene",
     "teacher_students_scene",
-
     # Color
     "color_state_machine",
     "brand_palette",
     "color_gradient",
     "tex_to_color_map",
     "semantic_color",
-
     # Math rendering
     "math_tex",
     "surrounding_rectangle",
     "brace_annotation",
     "equation_transform",
-
     # Data
     "algorithm_class_separation",
     "history_replay",
     "scipy_integration",
     "data_driven",
-
     # Reusable components
     "helper_function",
     "factory_pattern",
     "custom_mobject",
     "custom_animation",
-
     # Visual effects
     "arc_path",
     "traced_path",
@@ -415,19 +382,16 @@ TECHNIQUES = {
     "image_integration",
     "shader_custom",
     "dual_track_visualization",
-
     # Layout helpers
     "overlay_tracking",
     "labeled_pointer",
     "status_text",
     "step_counter",
-
     # Narrative
     "multi_scene_in_one_class",
     "scene_segmentation",
     "progressive_disclosure",
     "before_after_comparison",
-
     # Error avoidance
     "lambda_capture_i",
     "if_mobjects_guard",

@@ -3,22 +3,26 @@
 import subprocess
 import os
 import json
-import base64
-from pathlib import Path
 
 from ..core.agent import call_llm
 
 
-def extract_keyframes(video_path: str, output_dir: str, num_frames: int = 8) -> list[str]:
+def extract_keyframes(
+    video_path: str, output_dir: str, num_frames: int = 8
+) -> list[str]:
     """Extract evenly-spaced keyframes from video using ffmpeg."""
     frames_dir = os.path.join(output_dir, "frames")
     os.makedirs(frames_dir, exist_ok=True)
 
     # Get video duration
     duration_cmd = [
-        "ffprobe", "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1",
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
         video_path,
     ]
     result = subprocess.run(duration_cmd, capture_output=True, text=True)
@@ -36,10 +40,16 @@ def extract_keyframes(video_path: str, output_dir: str, num_frames: int = 8) -> 
         frame_path = os.path.join(frames_dir, f"frame_{i:03d}.png")
 
         cmd = [
-            "ffmpeg", "-y", "-ss", str(timestamp),
-            "-i", video_path,
-            "-vframes", "1",
-            "-q:v", "2",
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(timestamp),
+            "-i",
+            video_path,
+            "-vframes",
+            "1",
+            "-q:v",
+            "2",
             frame_path,
         ]
         subprocess.run(cmd, capture_output=True, text=True)
@@ -119,7 +129,7 @@ Return ONLY valid JSON evaluation."""
             elif response[i] == "}":
                 depth -= 1
                 if depth == 0:
-                    return json.loads(response[start:i+1])
+                    return json.loads(response[start : i + 1])
     except (json.JSONDecodeError, ValueError):
         pass
 
@@ -154,7 +164,7 @@ async def evaluate_video_frames(video_path: str, story: dict, output_dir: str) -
     frame_labels = []
     for i, path in enumerate(frame_paths):
         pct = int((i / max(len(frame_paths) - 1, 1)) * 100)
-        frame_labels.append(f"Frame {i+1} (at {pct}% of video)")
+        frame_labels.append(f"Frame {i + 1} (at {pct}% of video)")
 
     # Build scene descriptions so vision can check semantic correctness
     scene_descriptions = []
@@ -168,8 +178,8 @@ You look at actual rendered frames and evaluate BOTH visual quality AND correctn
 You must catch issues like: wrong chart proportions, misaligned fills, misleading visuals."""
 
     eval_prompt = f"""These are {len(frame_paths)} keyframes from an educational animation.
-Video title: {story.get('title', 'Unknown')}
-Frame timestamps: {', '.join(frame_labels)}
+Video title: {story.get("title", "Unknown")}
+Frame timestamps: {", ".join(frame_labels)}
 
 EXPECTED CONTENT (what the story intends to show):
 {chr(10).join(scene_descriptions)}
@@ -251,7 +261,7 @@ def _parse_json_response(response: str) -> dict:
             depth -= 1
             if depth == 0:
                 try:
-                    return json.loads(response[start:i+1])
+                    return json.loads(response[start : i + 1])
                 except json.JSONDecodeError:
                     return {"parse_error": True}
 
@@ -283,14 +293,23 @@ def static_code_checks(code: str) -> dict:
         for i, line in enumerate(lines):
             # Skip comments and strings
             stripped = line.split("#")[0]
-            if f"={color}" in stripped or f"= {color}" in stripped or f"({color}" in stripped or f", {color}" in stripped:
-                issues.append(f"Line {i+1}: Invalid color '{color}' - use hex or standard color")
+            if (
+                f"={color}" in stripped
+                or f"= {color}" in stripped
+                or f"({color}" in stripped
+                or f", {color}" in stripped
+            ):
+                issues.append(
+                    f"Line {i + 1}: Invalid color '{color}' - use hex or standard color"
+                )
 
     # Check 4: Text accumulation (heuristic)
     write_count = code.count("Write(")
     fadeout_count = code.count("FadeOut(")
     if write_count > fadeout_count + 3:
-        warnings.append(f"Possible text accumulation: {write_count} Write() vs {fadeout_count} FadeOut()")
+        warnings.append(
+            f"Possible text accumulation: {write_count} Write() vs {fadeout_count} FadeOut()"
+        )
 
     # Check 5: Timing analysis
     total_time = 0
@@ -311,17 +330,23 @@ def static_code_checks(code: str) -> dict:
     if total_time < 30:
         warnings.append(f"Video might be too short: ~{total_time:.0f}s estimated")
     elif total_time > 150:
-        warnings.append(f"Video might be too long: ~{total_time:.0f}s estimated (target: 90s)")
+        warnings.append(
+            f"Video might be too long: ~{total_time:.0f}s estimated (target: 90s)"
+        )
 
     # Check 6: Empty screen detection (heuristic)
     consecutive_fadeouts = 0
     for line in lines:
         if "FadeOut" in line:
             consecutive_fadeouts += 1
-        elif any(anim in line for anim in ["Write(", "Create(", "FadeIn(", "self.add("]):
+        elif any(
+            anim in line for anim in ["Write(", "Create(", "FadeIn(", "self.add("]
+        ):
             consecutive_fadeouts = 0
         if consecutive_fadeouts >= 3:
-            warnings.append("Possible empty screen: multiple consecutive FadeOut without new content")
+            warnings.append(
+                "Possible empty screen: multiple consecutive FadeOut without new content"
+            )
             consecutive_fadeouts = 0
 
     return {
@@ -351,12 +376,12 @@ def print_evaluation(eval_result: dict):
 
     critical = eval_result.get("critical_issues", [])
     if critical:
-        print(f"\n  Critical Issues:")
+        print("\n  Critical Issues:")
         for issue in critical:
             print(f"    ! {issue}")
 
     suggestions = eval_result.get("suggestions", [])
     if suggestions:
-        print(f"\n  Suggestions:")
+        print("\n  Suggestions:")
         for s in suggestions[:5]:
             print(f"    > {s}")

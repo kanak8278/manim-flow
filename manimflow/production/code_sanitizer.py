@@ -13,10 +13,19 @@ import re
 
 # Valid rate functions in Manim (that don't need special imports)
 VALID_RATE_FUNCS = {
-    "linear", "smooth", "rush_into", "rush_from", "slow_into",
-    "there_and_back", "there_and_back_with_pause", "running_start",
-    "not_quite_there", "wiggle", "lingering",
-    "double_smooth", "exponential_decay",
+    "linear",
+    "smooth",
+    "rush_into",
+    "rush_from",
+    "slow_into",
+    "there_and_back",
+    "there_and_back_with_pause",
+    "running_start",
+    "not_quite_there",
+    "wiggle",
+    "lingering",
+    "double_smooth",
+    "exponential_decay",
 }
 
 # Rate functions that need: from manim.utils.rate_functions import ...
@@ -105,7 +114,7 @@ def _convert_mathtex_to_text(line: str) -> str:
     # Remove remaining backslashes (LaTeX commands we don't have mappings for)
     # But preserve escaped quotes and actual backslashes in Python strings
     # Only remove \command patterns inside string literals
-    line = re.sub(r'\\([a-zA-Z]+)', r'\1', line)
+    line = re.sub(r"\\([a-zA-Z]+)", r"\1", line)
 
     # Also handle: TransformMatchingTex -> Transform (since we're not using Tex anymore)
     line = line.replace("TransformMatchingTex(", "Transform(")
@@ -119,13 +128,13 @@ def _estimate_code_duration(lines: list[str]) -> float:
     for line in lines:
         if "run_time=" in line:
             try:
-                rt = float(re.search(r'run_time\s*=\s*([0-9.]+)', line).group(1))
+                rt = float(re.search(r"run_time\s*=\s*([0-9.]+)", line).group(1))
                 total += rt
             except (AttributeError, ValueError):
                 total += 1  # default run_time
         elif "self.wait(" in line:
             try:
-                wt = float(re.search(r'self\.wait\(([0-9.]+)', line).group(1))
+                wt = float(re.search(r"self\.wait\(([0-9.]+)", line).group(1))
                 total += wt
             except (AttributeError, ValueError):
                 total += 1
@@ -137,17 +146,17 @@ def _estimate_code_duration(lines: list[str]) -> float:
 def _estimate_target_duration(code: str) -> float:
     """Extract target duration from the injected comment."""
     # Look for: # TOTAL TARGET DURATION: 112s
-    m = re.search(r'# TOTAL TARGET DURATION:\s*(\d+)s', code)
+    m = re.search(r"# TOTAL TARGET DURATION:\s*(\d+)s", code)
     if m:
         return float(m.group(1))
 
     # Fallback: look for any duration hint
-    m = re.search(r'# TOTAL.*?(\d+)s', code, re.IGNORECASE)
+    m = re.search(r"# TOTAL.*?(\d+)s", code, re.IGNORECASE)
     if m:
         return float(m.group(1))
 
     # Count scenes and estimate 15s each
-    scene_count = len(re.findall(r'#\s*={2,}.*(?:scene|act)', code, re.IGNORECASE))
+    scene_count = len(re.findall(r"#\s*={2,}.*(?:scene|act)", code, re.IGNORECASE))
     if scene_count > 0:
         return scene_count * 18  # ~18s per scene average
 
@@ -164,8 +173,8 @@ def _inject_scene_cleanup(lines: list[str], fixes: list[str]) -> list[str]:
     """
     result = []
     boundary_patterns = [
-        re.compile(r'^\s*#\s*={2,}.*(?:scene|act|section|part)\s*', re.IGNORECASE),
-        re.compile(r'^\s*with\s+self\.voiceover\('),
+        re.compile(r"^\s*#\s*={2,}.*(?:scene|act|section|part)\s*", re.IGNORECASE),
+        re.compile(r"^\s*with\s+self\.voiceover\("),
     ]
     injected_count = 0
 
@@ -174,7 +183,7 @@ def _inject_scene_cleanup(lines: list[str], fixes: list[str]) -> list[str]:
 
         if is_boundary and i > 10:
             # Check the lines before this boundary
-            recent = "\n".join(lines[max(0, i-5):i])
+            recent = "\n".join(lines[max(0, i - 5) : i])
 
             if "self.mobjects" not in recent:
                 # There's a FadeOut but it might be PARTIAL (missing elements).
@@ -182,16 +191,16 @@ def _inject_scene_cleanup(lines: list[str], fixes: list[str]) -> list[str]:
                 # Inject a catch-all cleanup that clears everything.
                 indent = "        "  # 8 spaces (inside construct method)
                 # Use safe cleanup that doesn't crash on empty mobjects list
-                cleanup_line = (
-                    f"{indent}if self.mobjects: self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)  # auto-cleanup"
-                )
+                cleanup_line = f"{indent}if self.mobjects: self.play(*[FadeOut(m) for m in self.mobjects], run_time=1)  # auto-cleanup"
                 result.append(cleanup_line)
                 injected_count += 1
 
         result.append(line)
 
     if injected_count > 0:
-        fixes.append(f"Auto-injected {injected_count} FadeOut cleanup(s) between scenes")
+        fixes.append(
+            f"Auto-injected {injected_count} FadeOut cleanup(s) between scenes"
+        )
 
     return result
 
@@ -215,44 +224,63 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
             if bad_name in line:
                 line = line.replace(bad_name, good_name)
                 if line != original:
-                    fixes.append(f"Line {i+1}: Replaced rate_func '{bad_name}' with '{good_name}'")
+                    fixes.append(
+                        f"Line {i + 1}: Replaced rate_func '{bad_name}' with '{good_name}'"
+                    )
 
         # Fix position constants
         for bad_pos, good_pos in POSITION_FIXES.items():
             # Only replace bare CENTER, not in strings
-            if re.search(rf'\b{bad_pos}\b', line.split("#")[0].split('"')[0]):
-                line = re.sub(rf'\b{bad_pos}\b', good_pos, line)
+            if re.search(rf"\b{bad_pos}\b", line.split("#")[0].split('"')[0]):
+                line = re.sub(rf"\b{bad_pos}\b", good_pos, line)
                 if line != original:
-                    fixes.append(f"Line {i+1}: Replaced '{bad_pos}' with '{good_pos}'")
+                    fixes.append(
+                        f"Line {i + 1}: Replaced '{bad_pos}' with '{good_pos}'"
+                    )
 
         # Replace GTTSService with EdgeTTSService (better neural voices)
         if "GTTSService" in line:
             old_line = line
             line = line.replace("GTTSService", "EdgeTTSService")
-            line = line.replace("from manim_voiceover.services.gtts import EdgeTTSService",
-                              "from manimflow.core.edge_tts_service import EdgeTTSService")
-            line = line.replace("from manimflow.edge_tts_service import",
-                              "from manimflow.core.edge_tts_service import")
+            line = line.replace(
+                "from manim_voiceover.services.gtts import EdgeTTSService",
+                "from manimflow.core.edge_tts_service import EdgeTTSService",
+            )
+            line = line.replace(
+                "from manimflow.edge_tts_service import",
+                "from manimflow.core.edge_tts_service import",
+            )
             if line != old_line:
-                fixes.append(f"Line {i+1}: Replaced GTTSService with EdgeTTSService (better voice)")
+                fixes.append(
+                    f"Line {i + 1}: Replaced GTTSService with EdgeTTSService (better voice)"
+                )
 
         # Fix wrong Manim API: .bottom_right → .get_corner(DR)
-        if ".bottom_right" in line or ".top_left" in line or ".top_right" in line or ".bottom_left" in line:
+        if (
+            ".bottom_right" in line
+            or ".top_left" in line
+            or ".top_right" in line
+            or ".bottom_left" in line
+        ):
             old_line = line
             line = line.replace(".bottom_right", ".get_corner(DR)")
             line = line.replace(".top_left", ".get_corner(UL)")
             line = line.replace(".top_right", ".get_corner(UR)")
             line = line.replace(".bottom_left", ".get_corner(DL)")
             if line != old_line:
-                fixes.append(f"Line {i+1}: Fixed corner access (.bottom_right → .get_corner(DR))")
+                fixes.append(
+                    f"Line {i + 1}: Fixed corner access (.bottom_right → .get_corner(DR))"
+                )
 
         # Fix unguarded self.mobjects cleanup (crashes when empty)
         if "for m in self.mobjects]" in line and "if self.mobjects" not in line:
             old_line = line
-            indent = line[:len(line) - len(line.lstrip())]
+            indent = line[: len(line) - len(line.lstrip())]
             line = indent + "if self.mobjects: " + line.lstrip()
             if line != old_line:
-                fixes.append(f"Line {i+1}: Guarded self.mobjects FadeOut (crashes when empty)")
+                fixes.append(
+                    f"Line {i + 1}: Guarded self.mobjects FadeOut (crashes when empty)"
+                )
 
         # Convert ALL MathTex to Text — avoids dvisvgm/LaTeX rendering issues entirely
         # Our highest-scoring videos (7-8.5/10) all used Text() only
@@ -261,7 +289,9 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
             # Convert LaTeX content to readable text
             line = _convert_mathtex_to_text(line)
             if line != old_line:
-                fixes.append(f"Line {i+1}: Converted MathTex to Text (avoids LaTeX rendering)")
+                fixes.append(
+                    f"Line {i + 1}: Converted MathTex to Text (avoids LaTeX rendering)"
+                )
 
         new_lines.append(line)
 
@@ -274,31 +304,35 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
             text_matches = re.findall(r'Text\(["\']([^"\']*)["\']', line)
             for text_content in text_matches:
                 # Check for non-ASCII characters
-                cleaned = ''.join(c if ord(c) < 128 else '' for c in text_content)
+                cleaned = "".join(c if ord(c) < 128 else "" for c in text_content)
                 if cleaned != text_content:
                     original = line
                     line = line.replace(text_content, cleaned)
                     new_lines[i] = line
                     if line != original:
                         removed_chars = set(c for c in text_content if ord(c) >= 128)
-                        fixes.append(f"Line {i+1}: Removed non-ASCII chars {removed_chars} from Text()")
+                        fixes.append(
+                            f"Line {i + 1}: Removed non-ASCII chars {removed_chars} from Text()"
+                        )
 
     # Fix Cross() — renders as ugly grey box. Replace with a red Line strike-through.
     for i, line in enumerate(new_lines):
-        if re.search(r'\bCross\(', line):
+        if re.search(r"\bCross\(", line):
             original = line
-            indent = line[:len(line) - len(line.lstrip())]
+            indent = line[: len(line) - len(line.lstrip())]
             # Extract what Cross is being assigned to
-            assign_match = re.match(r'(\s*\w+\s*=\s*)Cross\((\w+)', line)
+            assign_match = re.match(r"(\s*\w+\s*=\s*)Cross\((\w+)", line)
             if assign_match:
                 var_prefix = assign_match.group(1)
                 target = assign_match.group(2)
-                line = (f"{var_prefix}Line({target}.get_corner(UL), {target}.get_corner(DR), "
-                        f"color=RED, stroke_width=4)")
+                line = (
+                    f"{var_prefix}Line({target}.get_corner(UL), {target}.get_corner(DR), "
+                    f"color=RED, stroke_width=4)"
+                )
             else:
                 line = indent + "pass  # Cross() removed (renders as grey box)"
             if line != original:
-                fixes.append(f"Line {i+1}: Replaced Cross() with Line strike-through")
+                fixes.append(f"Line {i + 1}: Replaced Cross() with Line strike-through")
                 new_lines[i] = line
 
     # Auto-inject FadeOut between scene sections
@@ -320,8 +354,13 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
                 # Insert padding wait before the last animation
                 padding = min(deficit, 15)  # Cap at 15s padding
                 indent = "        "
-                new_lines.insert(i, f"{indent}self.wait({padding:.1f})  # Padding to match voiceover duration")
-                fixes.append(f"Added {padding:.1f}s wait padding (video was {estimated_duration:.0f}s, target {target_duration:.0f}s)")
+                new_lines.insert(
+                    i,
+                    f"{indent}self.wait({padding:.1f})  # Padding to match voiceover duration",
+                )
+                fixes.append(
+                    f"Added {padding:.1f}s wait padding (video was {estimated_duration:.0f}s, target {target_duration:.0f}s)"
+                )
                 break
 
     # Rebuild code from modified new_lines
@@ -333,7 +372,9 @@ def sanitize_code(code: str) -> tuple[str, list[str]]:
         fixes.append("Added missing manim imports")
 
     if "import numpy" not in code and "np." in code:
-        code = code.replace("from manim import *", "from manim import *\nimport numpy as np")
+        code = code.replace(
+            "from manim import *", "from manim import *\nimport numpy as np"
+        )
         fixes.append("Added missing numpy import")
 
     return code, fixes

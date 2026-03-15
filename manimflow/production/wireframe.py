@@ -54,10 +54,23 @@ def render_wireframes(code: str, output_dir: str) -> list[str]:
         png_path = os.path.join(output_dir, f"wireframe_{i}_{section_name}.png")
 
         result = subprocess.run(
-            ["uv", "run", "python", "-m", "manim", "-ql",
-             "--format", "png", "--media_dir", output_dir,
-             wireframe_path, scene_class],
-            capture_output=True, text=True, timeout=30,
+            [
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "manim",
+                "-ql",
+                "--format",
+                "png",
+                "--media_dir",
+                output_dir,
+                wireframe_path,
+                scene_class,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
 
         if result.returncode == 0:
@@ -98,7 +111,9 @@ def _extract_scene_sections(code: str) -> list[str]:
         stripped = line.strip()
 
         # Comment markers
-        match = re.match(r"#\s*(?:Scene|SHOT|Shot|Section)\s*(\d+)\s*[:\-]\s*(.*)", stripped)
+        match = re.match(
+            r"#\s*(?:Scene|SHOT|Shot|Section)\s*(\d+)\s*[:\-]\s*(.*)", stripped
+        )
         if match:
             num = match.group(1)
             name = match.group(2).strip() or f"section_{num}"
@@ -145,8 +160,8 @@ def _build_wireframe_file(code: str, sections: list[str]) -> str:
 
     for i, section_name in enumerate(sections):
         out.append(f"class Wireframe_{i}(Scene):")
-        out.append(f"    def construct(self):")
-        out.append(f"        self.camera.background_color = BLACK")
+        out.append("    def construct(self):")
+        out.append("        self.camera.background_color = BLACK")
 
         elements = section_elements.get(i, [])
         if elements:
@@ -154,7 +169,7 @@ def _build_wireframe_file(code: str, sections: list[str]) -> str:
                 out.append(f"        {elem_line}")
         else:
             out.append(f"        # No elements found for section {section_name}")
-            out.append(f"        pass")
+            out.append("        pass")
         out.append("")
 
     return "\n".join(out)
@@ -179,15 +194,20 @@ def _extract_helpers(lines: list[str]) -> list[str]:
         if in_helper:
             # Dedent the helper to module level
             if line.strip():
-                dedented = line[indent_level:] if len(line) > indent_level else line.lstrip()
+                dedented = (
+                    line[indent_level:] if len(line) > indent_level else line.lstrip()
+                )
                 current_helper.append(dedented)
             else:
                 current_helper.append("")
 
             # Check if helper ended (next non-indented, non-empty line)
             if stripped.startswith("return ") or (
-                current_helper and len(current_helper) > 2
-                and stripped and not stripped.startswith(" ") and not stripped.startswith("def ")
+                current_helper
+                and len(current_helper) > 2
+                and stripped
+                and not stripped.startswith(" ")
+                and not stripped.startswith("def ")
             ):
                 helpers.extend(current_helper)
                 helpers.append("")
@@ -200,7 +220,9 @@ def _extract_helpers(lines: list[str]) -> list[str]:
     return helpers
 
 
-def _extract_elements_per_section(lines: list[str], num_sections: int) -> dict[int, list[str]]:
+def _extract_elements_per_section(
+    lines: list[str], num_sections: int
+) -> dict[int, list[str]]:
     """Extract element creation + positioning lines, grouped by section.
 
     Returns dict mapping section index → list of code lines that create/position elements.
@@ -211,11 +233,26 @@ def _extract_elements_per_section(lines: list[str], num_sections: int) -> dict[i
 
     # Manim constructors to look for
     constructors = [
-        "Text(", "RoundedRectangle(", "make_card(", "Arrow(",
-        "Line(", "Circle(", "Dot(", "NumberLine(", "Axes(",
-        "VGroup(", "Brace(", "Table(", "MathTex(", "Tex(",
-        "Square(", "Rectangle(", "Polygon(", "Star(",
-        "DashedLine(", "DoubleArrow(",
+        "Text(",
+        "RoundedRectangle(",
+        "make_card(",
+        "Arrow(",
+        "Line(",
+        "Circle(",
+        "Dot(",
+        "NumberLine(",
+        "Axes(",
+        "VGroup(",
+        "Brace(",
+        "Table(",
+        "MathTex(",
+        "Tex(",
+        "Square(",
+        "Rectangle(",
+        "Polygon(",
+        "Star(",
+        "DashedLine(",
+        "DoubleArrow(",
     ]
 
     for line in lines:
@@ -233,12 +270,23 @@ def _extract_elements_per_section(lines: list[str], num_sections: int) -> dict[i
             section_elements[current_section] = []
 
         # Skip non-element lines
-        if any(stripped.startswith(s) for s in [
-            "from ", "import ", "class ", "def construct", "def ",
-            "self.play(", "self.wait", "self.set_speech",
-            "with self.voiceover", "tracker.",
-            "if self.mobjects", "#",
-        ]):
+        if any(
+            stripped.startswith(s)
+            for s in [
+                "from ",
+                "import ",
+                "class ",
+                "def construct",
+                "def ",
+                "self.play(",
+                "self.wait",
+                "self.set_speech",
+                "with self.voiceover",
+                "tracker.",
+                "if self.mobjects",
+                "#",
+            ]
+        ):
             continue
 
         if "wait_until_bookmark" in stripped:
@@ -254,7 +302,9 @@ def _extract_elements_per_section(lines: list[str], num_sections: int) -> dict[i
             continue
 
         # Positioning calls (chained or standalone)
-        if any(m in stripped for m in [".move_to(", ".next_to(", ".shift(", ".to_edge("]):
+        if any(
+            m in stripped for m in [".move_to(", ".next_to(", ".shift(", ".to_edge("]
+        ):
             section_elements[current_section].append(stripped)
 
     return section_elements

@@ -44,6 +44,7 @@ def get_langfuse():
     if _langfuse is None and is_enabled():
         try:
             from langfuse import Langfuse
+
             _langfuse = Langfuse()
             logger.info("Langfuse client initialized")
         except Exception as e:
@@ -67,6 +68,7 @@ def observe(*args, **kwargs):
     if is_enabled():
         try:
             from langfuse import observe as lf_observe
+
             return lf_observe(*args, **kwargs)
         except ImportError:
             pass
@@ -95,7 +97,9 @@ def update_generation(model: str = "", usage: dict = None, metadata: dict = None
                 "output": usage.get("output_tokens", 0),
             }
             if usage.get("cache_read_input_tokens"):
-                kwargs.setdefault("metadata", {})["cache_read"] = usage["cache_read_input_tokens"]
+                kwargs.setdefault("metadata", {})["cache_read"] = usage[
+                    "cache_read_input_tokens"
+                ]
         if metadata:
             kwargs["metadata"] = {**kwargs.get("metadata", {}), **metadata}
         lf.update_current_generation(**kwargs)

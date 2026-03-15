@@ -8,8 +8,9 @@ import subprocess
 import os
 
 
-def generate_thumbnail(video_path: str, output_dir: str,
-                       num_candidates: int = 10) -> dict:
+def generate_thumbnail(
+    video_path: str, output_dir: str, num_candidates: int = 10
+) -> dict:
     """Extract the best frame from a video as a thumbnail.
 
     Strategy:
@@ -23,9 +24,18 @@ def generate_thumbnail(video_path: str, output_dir: str,
 
     # Get video duration
     result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", video_path],
-        capture_output=True, text=True,
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ],
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         return {"success": False, "error": "ffprobe failed"}
@@ -43,21 +53,33 @@ def generate_thumbnail(video_path: str, output_dir: str,
         timestamp = start + (i / max(num_candidates - 1, 1)) * span
         frame_path = os.path.join(output_dir, f"thumb_candidate_{i:02d}.png")
 
-        subprocess.run([
-            "ffmpeg", "-y", "-ss", str(timestamp),
-            "-i", video_path,
-            "-vframes", "1",
-            "-q:v", "1",  # Highest quality
-            frame_path,
-        ], capture_output=True, text=True)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss",
+                str(timestamp),
+                "-i",
+                video_path,
+                "-vframes",
+                "1",
+                "-q:v",
+                "1",  # Highest quality
+                frame_path,
+            ],
+            capture_output=True,
+            text=True,
+        )
 
         if os.path.exists(frame_path):
             size = os.path.getsize(frame_path)
-            candidates.append({
-                "path": frame_path,
-                "timestamp": timestamp,
-                "size": size,
-            })
+            candidates.append(
+                {
+                    "path": frame_path,
+                    "timestamp": timestamp,
+                    "size": size,
+                }
+            )
 
     if not candidates:
         return {"success": False, "error": "No frames extracted"}
@@ -82,8 +104,7 @@ def generate_thumbnail(video_path: str, output_dir: str,
     }
 
 
-def generate_thumbnail_with_title(video_path: str, output_dir: str,
-                                   title: str) -> dict:
+def generate_thumbnail_with_title(video_path: str, output_dir: str, title: str) -> dict:
     """Generate thumbnail with title text overlay.
 
     Uses ffmpeg to add bold text to the best frame.
@@ -104,18 +125,22 @@ def generate_thumbnail_with_title(video_path: str, output_dir: str,
         mid = len(safe_title) // 2
         space_idx = safe_title.rfind(" ", 0, mid + 10)
         if space_idx > 0:
-            safe_title = safe_title[:space_idx] + "\n" + safe_title[space_idx + 1:]
+            safe_title = safe_title[:space_idx] + "\n" + safe_title[space_idx + 1 :]
 
     cmd = [
-        "ffmpeg", "-y",
-        "-i", base_path,
-        "-vf", (
+        "ffmpeg",
+        "-y",
+        "-i",
+        base_path,
+        "-vf",
+        (
             f"drawtext=text='{safe_title}':"
             f"fontsize=48:fontcolor=white:borderw=3:bordercolor=black:"
             f"x=(w-text_w)/2:y=h-text_h-40:"
             f"font=Arial"
         ),
-        "-q:v", "1",
+        "-q:v",
+        "1",
         final_path,
     ]
 

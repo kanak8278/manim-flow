@@ -107,6 +107,7 @@ TOOLS = [SEARCH_KNOWLEDGE_TOOL]
 
 # ─── Tool executor ─────────────────────────────────────────────────────
 
+
 def execute_tool(tool_name: str, tool_input: dict) -> str:
     """Execute a knowledge tool call and return the result as text.
 
@@ -139,10 +140,16 @@ def _execute_search(params: dict) -> str:
 
 # ─── System prompt context ─────────────────────────────────────────────
 
+
 def _get_vocab_block() -> str:
     """Get vocabulary hints for structured filters."""
     from .vocabulary import (
-        DOMAINS, ELEMENTS, ANIMATIONS, LAYOUTS, TECHNIQUES, VISUAL_PURPOSE,
+        DOMAINS,
+        ELEMENTS,
+        ANIMATIONS,
+        LAYOUTS,
+        TECHNIQUES,
+        VISUAL_PURPOSE,
     )
 
     def sample(s, n=20):
@@ -165,8 +172,8 @@ def get_knowledge_system_context() -> str:
 
     return f"""## Knowledge Base
 
-You have a `search_knowledge` tool with {stats['total_docs']} real Manim video examples
-and {stats['total_patterns']} tested code patterns from production channels.
+You have a `search_knowledge` tool with {stats["total_docs"]} real Manim video examples
+and {stats["total_patterns"]} tested code patterns from production channels.
 
 Search ONCE before writing code. One well-crafted query is better than multiple vague ones.
 Look for:
@@ -190,8 +197,8 @@ def get_knowledge_context_screenplay() -> str:
 
     return f"""## Knowledge Base
 
-You have a `search_knowledge` tool with {stats['total_docs']} real Manim video examples
-and {stats['total_patterns']} tested code patterns from production channels.
+You have a `search_knowledge` tool with {stats["total_docs"]} real Manim video examples
+and {stats["total_patterns"]} tested code patterns from production channels.
 
 Search for SPECIFIC things — one technique or one visual pattern per query. Examples of good queries:
 - "number line with converging dots approaching a limit"

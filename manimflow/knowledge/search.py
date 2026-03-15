@@ -29,9 +29,11 @@ from dataclasses import dataclass, field
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Pattern:
     """A single visual pattern extracted from a scene document."""
+
     name: str
     what: str
     when_to_use: str
@@ -42,6 +44,7 @@ class Pattern:
 @dataclass
 class SceneDoc:
     """A parsed scene documentation file."""
+
     file: str
     source: str
     project: str
@@ -64,8 +67,12 @@ class SceneDoc:
 
     def all_tags(self) -> list[str]:
         return (
-            self.domain + self.elements + self.animations +
-            self.layouts + self.techniques + self.purpose
+            self.domain
+            + self.elements
+            + self.animations
+            + self.layouts
+            + self.techniques
+            + self.purpose
         )
 
     def tag_set(self, field_name: str) -> set[str]:
@@ -75,6 +82,7 @@ class SceneDoc:
 @dataclass
 class SearchResult:
     """A search result returned to the LLM."""
+
     file: str
     source: str
     project: str
@@ -88,6 +96,7 @@ class SearchResult:
 # ---------------------------------------------------------------------------
 # BM25 Engine
 # ---------------------------------------------------------------------------
+
 
 class BM25Field:
     """BM25 index for a single field across all documents.
@@ -111,9 +120,9 @@ class BM25Field:
         self.b = b
         self.doc_count = 0
         self.avg_dl = 0.0
-        self.doc_freqs: dict[str, int] = {}       # term → num docs containing it
-        self.doc_term_freqs: list[Counter] = []    # per-doc term frequencies
-        self.doc_lengths: list[int] = []           # per-doc field lengths
+        self.doc_freqs: dict[str, int] = {}  # term → num docs containing it
+        self.doc_term_freqs: list[Counter] = []  # per-doc term frequencies
+        self.doc_lengths: list[int] = []  # per-doc field lengths
 
     def add_document(self, doc_idx: int, text: str):
         """Index a document's field text."""
@@ -169,17 +178,17 @@ class BM25Field:
 
 # Field definitions: name → (weight, description)
 FIELD_WEIGHTS = {
-    "tags":           5.0,   # Controlled vocabulary tags — highest intent signal
-    "pattern_names":  4.0,   # Curated pattern names like "Arc-Based Swap"
-    "when_to_use":    3.0,   # Intent descriptions — closest to LLM query language
-    "summary":        2.0,   # Natural language overview
-    "design":         2.0,   # Design decisions — WHY choices were made
-    "composition":    1.5,   # Spatial layout, positions, sizes, spacing
-    "color_styling":  1.5,   # Colors, opacity, fonts, visual styling
-    "timing":         1.0,   # Animation durations, run_time values
-    "scene_flow":     1.0,   # Step-by-step narrative structure
-    "code":           0.5,   # Catches method/class names but noisy
-    "manim_classes":  1.0,   # Manim mobject and animation class names
+    "tags": 5.0,  # Controlled vocabulary tags — highest intent signal
+    "pattern_names": 4.0,  # Curated pattern names like "Arc-Based Swap"
+    "when_to_use": 3.0,  # Intent descriptions — closest to LLM query language
+    "summary": 2.0,  # Natural language overview
+    "design": 2.0,  # Design decisions — WHY choices were made
+    "composition": 1.5,  # Spatial layout, positions, sizes, spacing
+    "color_styling": 1.5,  # Colors, opacity, fonts, visual styling
+    "timing": 1.0,  # Animation durations, run_time values
+    "scene_flow": 1.0,  # Step-by-step narrative structure
+    "code": 0.5,  # Catches method/class names but noisy
+    "manim_classes": 1.0,  # Manim mobject and animation class names
 }
 
 
@@ -315,9 +324,12 @@ class KnowledgeSearch:
             # When LLM passes structured tags, exact matches in the
             # corresponding field get an extra boost
             tag_filters = {
-                "domain": domain, "elements": elements,
-                "animations": animations, "layouts": layouts,
-                "techniques": techniques, "purpose": purpose,
+                "domain": domain,
+                "elements": elements,
+                "animations": animations,
+                "layouts": layouts,
+                "techniques": techniques,
+                "purpose": purpose,
             }
             for field_name, filter_vals in tag_filters.items():
                 if not filter_vals:
@@ -332,16 +344,18 @@ class KnowledgeSearch:
                 # Find which patterns matched
                 matched_patterns = self._match_patterns(doc, query_tokens)
 
-                results.append(SearchResult(
-                    file=doc.file,
-                    source=doc.source,
-                    project=doc.project,
-                    score=total_score,
-                    summary=doc.summary[:300],
-                    matched_patterns=matched_patterns,
-                    matched_tags=matched_tags,
-                    field_scores=field_scores,
-                ))
+                results.append(
+                    SearchResult(
+                        file=doc.file,
+                        source=doc.source,
+                        project=doc.project,
+                        score=total_score,
+                        summary=doc.summary[:300],
+                        matched_patterns=matched_patterns,
+                        matched_tags=matched_tags,
+                        field_scores=field_scores,
+                    )
+                )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:limit]
@@ -403,7 +417,9 @@ class KnowledgeSearch:
             lines.append(f"{r.file} (total={r.score:.1f})")
             for fname, fscore in sorted(r.field_scores.items(), key=lambda x: -x[1]):
                 if fscore > 0:
-                    lines.append(f"  {fname:20s} → {fscore:.2f} (weight={FIELD_WEIGHTS[fname]}x)")
+                    lines.append(
+                        f"  {fname:20s} → {fscore:.2f} (weight={FIELD_WEIGHTS[fname]}x)"
+                    )
             if r.matched_tags:
                 lines.append(f"  {'exact_tag_bonus':20s} → {', '.join(r.matched_tags)}")
             pats = ", ".join(p.name for p in r.matched_patterns[:3])
@@ -413,7 +429,14 @@ class KnowledgeSearch:
 
     def get_tool_description(self) -> str:
         """Return the tool description to include in LLM system prompt."""
-        from .vocabulary import DOMAINS, ELEMENTS, ANIMATIONS, LAYOUTS, TECHNIQUES, VISUAL_PURPOSE
+        from .vocabulary import (
+            DOMAINS,
+            ELEMENTS,
+            ANIMATIONS,
+            LAYOUTS,
+            TECHNIQUES,
+            VISUAL_PURPOSE,
+        )
 
         def top(s, n=15):
             return ", ".join(sorted(s)[:n]) + ", ..."
@@ -499,14 +522,15 @@ search_knowledge(query="how to show a hierarchy with cards and arrows")
                         if val.startswith("[") and val.endswith("]"):
                             val = [v.strip().strip("'\"") for v in val[1:-1].split(",")]
                         fm[key] = val
-                content = content[end + 3:].strip()
+                content = content[end + 3 :].strip()
 
         def tags(key):
             v = fm.get(key, [])
             return v if isinstance(v, list) else []
 
         return SceneDoc(
-            file=fname, source=fm.get("source", ""),
+            file=fname,
+            source=fm.get("source", ""),
             project=fm.get("project", ""),
             summary=self._section(content, "## Summary"),
             design_decisions=self._section(content, "## Design Decisions"),
@@ -514,10 +538,14 @@ search_knowledge(query="how to show a hierarchy with cards and arrows")
             color_styling=self._section(content, "## Color and Styling"),
             timing=self._section(content, "## Timing"),
             scene_flow=self._section(content, "## Scene Flow"),
-            domain=tags("domain"), elements=tags("elements"),
-            animations=tags("animations"), layouts=tags("layouts"),
-            techniques=tags("techniques"), purpose=tags("purpose"),
-            mobjects=tags("mobjects"), manim_animations=tags("manim_animations"),
+            domain=tags("domain"),
+            elements=tags("elements"),
+            animations=tags("animations"),
+            layouts=tags("layouts"),
+            techniques=tags("techniques"),
+            purpose=tags("purpose"),
+            mobjects=tags("mobjects"),
+            manim_animations=tags("manim_animations"),
             patterns=self._patterns(content),
         )
 
@@ -531,26 +559,34 @@ search_knowledge(query="how to show a hierarchy with cards and arrows")
 
     def _patterns(self, content: str) -> list[Pattern]:
         results = []
-        regex = re.compile(r'### Pattern:\s*(.+?)(?=\n)')
+        regex = re.compile(r"### Pattern:\s*(.+?)(?=\n)")
         matches = list(regex.finditer(content))
         for i, m in enumerate(matches):
             name = m.group(1).strip()
             start = m.end()
-            end = matches[i + 1].start() if i + 1 < len(matches) else (
-                content.find("\n## ", start) if content.find("\n## ", start) > 0 else len(content)
+            end = (
+                matches[i + 1].start()
+                if i + 1 < len(matches)
+                else (
+                    content.find("\n## ", start)
+                    if content.find("\n## ", start) > 0
+                    else len(content)
+                )
             )
             block = content[start:end]
-            what_m = re.search(r'\*\*What\*\*:\s*(.+)', block)
-            when_m = re.search(r'\*\*When to use\*\*:\s*(.+)', block)
-            code_m = re.search(r'```python\n(.+?)```', block, re.DOTALL)
-            src_m = re.search(r'# Source:\s*(.+)', block)
-            results.append(Pattern(
-                name=name,
-                what=what_m.group(1).strip() if what_m else "",
-                when_to_use=when_m.group(1).strip() if when_m else "",
-                code=code_m.group(1).strip() if code_m else "",
-                source_line=src_m.group(1).strip() if src_m else "",
-            ))
+            what_m = re.search(r"\*\*What\*\*:\s*(.+)", block)
+            when_m = re.search(r"\*\*When to use\*\*:\s*(.+)", block)
+            code_m = re.search(r"```python\n(.+?)```", block, re.DOTALL)
+            src_m = re.search(r"# Source:\s*(.+)", block)
+            results.append(
+                Pattern(
+                    name=name,
+                    what=what_m.group(1).strip() if what_m else "",
+                    when_to_use=when_m.group(1).strip() if when_m else "",
+                    code=code_m.group(1).strip() if code_m else "",
+                    source_line=src_m.group(1).strip() if src_m else "",
+                )
+            )
         return results
 
 
@@ -559,13 +595,60 @@ search_knowledge(query="how to show a hierarchy with cards and arrows")
 # ---------------------------------------------------------------------------
 
 _STOP_WORDS = {
-    "a", "an", "the", "is", "to", "for", "in", "of", "and",
-    "or", "with", "how", "do", "i", "my", "it", "on", "at",
-    "that", "this", "can", "should", "need", "want", "use",
-    "show", "make", "create", "using", "like", "from", "be",
-    "any", "each", "all", "when", "where", "what", "which",
-    "are", "was", "were", "been", "being", "have", "has",
-    "but", "not", "so", "if", "then", "than", "no", "by",
+    "a",
+    "an",
+    "the",
+    "is",
+    "to",
+    "for",
+    "in",
+    "of",
+    "and",
+    "or",
+    "with",
+    "how",
+    "do",
+    "i",
+    "my",
+    "it",
+    "on",
+    "at",
+    "that",
+    "this",
+    "can",
+    "should",
+    "need",
+    "want",
+    "use",
+    "show",
+    "make",
+    "create",
+    "using",
+    "like",
+    "from",
+    "be",
+    "any",
+    "each",
+    "all",
+    "when",
+    "where",
+    "what",
+    "which",
+    "are",
+    "was",
+    "were",
+    "been",
+    "being",
+    "have",
+    "has",
+    "but",
+    "not",
+    "so",
+    "if",
+    "then",
+    "than",
+    "no",
+    "by",
 }
 
 
@@ -576,7 +659,7 @@ def _tokenize_for_index(text: str) -> list[str]:
     both the compound form and individual words.
     """
     text = text.lower()
-    words = re.findall(r'[a-z0-9_]+', text)
+    words = re.findall(r"[a-z0-9_]+", text)
     tokens = []
     for w in words:
         if w in _STOP_WORDS or len(w) <= 1:
@@ -598,7 +681,7 @@ def _tokenize_for_query(query: str) -> list[str]:
     and splits any underscored terms into parts.
     """
     query = query.lower()
-    words = re.findall(r'[a-z0-9_]+', query)
+    words = re.findall(r"[a-z0-9_]+", query)
     clean = [w for w in words if w not in _STOP_WORDS and len(w) > 1]
 
     tokens = list(clean)
@@ -648,9 +731,14 @@ def search_knowledge(
     """
     ks = get_search()
     results = ks.search(
-        query=query, domain=domain, elements=elements,
-        animations=animations, layouts=layouts,
-        techniques=techniques, purpose=purpose, limit=limit,
+        query=query,
+        domain=domain,
+        elements=elements,
+        animations=animations,
+        layouts=layouts,
+        techniques=techniques,
+        purpose=purpose,
+        limit=limit,
     )
     return ks.format_for_llm(results)
 
@@ -666,46 +754,94 @@ if __name__ == "__main__":
     # Test suite
     tests = [
         # (kwargs, expected_top_file, description)
-        (dict(query="swap elements", domain=["sorting"]),
-         "bubble_sort.md", "structured + text"),
-        (dict(query="dynamic updating line plot", techniques=["value_tracker"]),
-         "linear_regression.md", "technique filter + text"),
-        (dict(query="compare approaches", layouts=["side_by_side"]),
-         "deepseek_r1.md", "layout filter + text"),
-        (dict(elements=["pipeline", "arrow"], purpose=["process"]),
-         "deepseek_r1.md", "pure structured tags"),
-        (dict(domain=["machine_learning"]),
-         "linear_regression.md OR deepseek_r1.md", "domain only"),
-        (dict(domain=["sorting"]),
-         "bubble_sort.md", "domain only"),
-
+        (
+            dict(query="swap elements", domain=["sorting"]),
+            "bubble_sort.md",
+            "structured + text",
+        ),
+        (
+            dict(query="dynamic updating line plot", techniques=["value_tracker"]),
+            "linear_regression.md",
+            "technique filter + text",
+        ),
+        (
+            dict(query="compare approaches", layouts=["side_by_side"]),
+            "deepseek_r1.md",
+            "layout filter + text",
+        ),
+        (
+            dict(elements=["pipeline", "arrow"], purpose=["process"]),
+            "deepseek_r1.md",
+            "pure structured tags",
+        ),
+        (
+            dict(domain=["machine_learning"]),
+            "linear_regression.md OR deepseek_r1.md",
+            "domain only",
+        ),
+        (dict(domain=["sorting"]), "bubble_sort.md", "domain only"),
         # Free text queries
-        (dict(query="swap two elements sorting animation"),
-         "bubble_sort.md", "text: swap sorting"),
-        (dict(query="value_tracker always_redraw dynamic line"),
-         "linear_regression.md", "text: value_tracker"),
-        (dict(query="pipeline flow diagram arrows stages"),
-         "deepseek_r1.md", "text: pipeline"),
-        (dict(query="highlight current element algorithm"),
-         "bubble_sort.md", "text: highlight algorithm"),
-        (dict(query="bar chart benchmark performance"),
-         "deepseek_r1.md", "text: bar chart"),
-        (dict(query="scatter plot data points"),
-         "linear_regression.md", "text: scatter plot"),
-        (dict(query="equation formula emphasis box"),
-         "deepseek_r1.md", "text: equation box"),
-        (dict(query="training progress machine learning"),
-         "linear_regression.md", "text: training ML"),
-        (dict(query="step by step algorithm walkthrough"),
-         "bubble_sort.md", "text: step by step"),
-        (dict(query="research paper explainer multiple sections"),
-         "deepseek_r1.md", "text: paper explainer"),
-
+        (
+            dict(query="swap two elements sorting animation"),
+            "bubble_sort.md",
+            "text: swap sorting",
+        ),
+        (
+            dict(query="value_tracker always_redraw dynamic line"),
+            "linear_regression.md",
+            "text: value_tracker",
+        ),
+        (
+            dict(query="pipeline flow diagram arrows stages"),
+            "deepseek_r1.md",
+            "text: pipeline",
+        ),
+        (
+            dict(query="highlight current element algorithm"),
+            "bubble_sort.md",
+            "text: highlight algorithm",
+        ),
+        (
+            dict(query="bar chart benchmark performance"),
+            "deepseek_r1.md",
+            "text: bar chart",
+        ),
+        (
+            dict(query="scatter plot data points"),
+            "linear_regression.md",
+            "text: scatter plot",
+        ),
+        (
+            dict(query="equation formula emphasis box"),
+            "deepseek_r1.md",
+            "text: equation box",
+        ),
+        (
+            dict(query="training progress machine learning"),
+            "linear_regression.md",
+            "text: training ML",
+        ),
+        (
+            dict(query="step by step algorithm walkthrough"),
+            "bubble_sort.md",
+            "text: step by step",
+        ),
+        (
+            dict(query="research paper explainer multiple sections"),
+            "deepseek_r1.md",
+            "text: paper explainer",
+        ),
         # Mixed
-        (dict(query="training progress line", domain=["machine_learning"]),
-         "linear_regression.md", "mixed: training + ML domain"),
-        (dict(query="step by step walkthrough", domain=["algorithms"]),
-         "bubble_sort.md", "mixed: walkthrough + algorithms"),
+        (
+            dict(query="training progress line", domain=["machine_learning"]),
+            "linear_regression.md",
+            "mixed: training + ML domain",
+        ),
+        (
+            dict(query="step by step walkthrough", domain=["algorithms"]),
+            "bubble_sort.md",
+            "mixed: walkthrough + algorithms",
+        ),
     ]
 
     correct = 0
@@ -724,7 +860,7 @@ if __name__ == "__main__":
         else:
             print(f"  MISS: [{desc}] → No results (expected {expected})")
 
-    print(f"\nAccuracy: {correct}/{len(tests)} ({100*correct/len(tests):.0f}%)")
+    print(f"\nAccuracy: {correct}/{len(tests)} ({100 * correct / len(tests):.0f}%)")
 
     # Show detailed score breakdown for one query
     print("\n=== Score breakdown: 'swap elements sorting' ===\n")
