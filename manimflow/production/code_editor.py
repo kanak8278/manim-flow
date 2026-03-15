@@ -9,7 +9,7 @@ The LLM receives the code with line numbers and can specify exact edits.
 import re
 import json
 from ..core.agent import Agent, call_llm
-from ..knowledge.tool import TOOLS, get_knowledge_system_context
+from ..knowledge.tool import get_knowledge_system_context
 
 
 EDITOR_SYSTEM_PROMPT = r"""You are a Manim code editor. You fix bugs by making SURGICAL EDITS — not by rewriting the entire file.
@@ -63,9 +63,10 @@ async def surgical_fix(code: str, issues: str) -> str:
     )
 
     system = EDITOR_SYSTEM_PROMPT + "\n\n" + get_knowledge_system_context()
-    agent = Agent(system_prompt=system, tools=TOOLS)
+    agent = Agent(system_prompt=system)
     agent.add_user_message(user_prompt)
-    response = await agent.run(max_tool_rounds=2)
+    content, _, _ = await agent.call()
+    response = Agent.extract_text(content)
 
     # Parse the edit instructions
     edits = _parse_edits(response)

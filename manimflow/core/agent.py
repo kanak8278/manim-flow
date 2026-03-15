@@ -34,28 +34,22 @@ from tenacity import (
 )
 
 from . import tracing
+from .config import (
+    MODEL as DEFAULT_MODEL,
+    LLM_PROVIDER,
+    BEDROCK_MODEL_ID,
+    ADAPTIVE_THINKING_MODELS,
+    CONTEXT_1M_MODELS,
+    MAX_TOKENS_DEFAULT,
+    ENABLE_THINKING,
+    THINKING_BUDGET,
+    ENABLE_1M_CONTEXT,
+    ENABLE_CACHING,
+    CACHE_TTL,
+)
 
 logger = logging.getLogger(__name__)
 
-# Default model — override via MODEL env var or constructor
-DEFAULT_MODEL = os.environ.get("MODEL", "claude-sonnet-4-20250514")
-
-# Models that support adaptive thinking (no budget needed)
-ADAPTIVE_THINKING_MODELS = {"claude-opus-4-6"}
-
-# Models that support 1M context beta
-CONTEXT_1M_MODELS = {
-    "claude-opus-4-6",
-    "claude-sonnet-4-6",
-    "claude-sonnet-4-5-20250929",
-    "claude-sonnet-4-20250514",
-}
-
-# LLM provider config
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic")
-BEDROCK_MODEL_ID = os.environ.get(
-    "BEDROCK_MODEL_ID", "anthropic.claude-sonnet-4-5-20250929-v2:0"
-)
 BEDROCK_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 
@@ -104,12 +98,12 @@ class Agent:
         tools: list[dict] | None = None,
         model: str | None = None,
         provider: str | None = None,
-        max_tokens: int = 16384,
-        enable_caching: bool = True,
-        cache_ttl: str = "5m",
-        enable_thinking: bool = True,
-        thinking_budget: int = 10000,
-        enable_1m_context: bool = False,
+        max_tokens: int = MAX_TOKENS_DEFAULT,
+        enable_caching: bool = ENABLE_CACHING,
+        cache_ttl: str = CACHE_TTL,
+        enable_thinking: bool = ENABLE_THINKING,
+        thinking_budget: int = THINKING_BUDGET,
+        enable_1m_context: bool = ENABLE_1M_CONTEXT,
     ):
         self.system_prompt = system_prompt
         self.tools = tools or []

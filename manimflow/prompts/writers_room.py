@@ -73,32 +73,6 @@ But the AHA must ALWAYS be the most visually dynamic moment.
 """
 
 
-# ─── WRITER PERSONAS ───
-# Each parallel agent gets a different creative lens.
-# Forces genuine variety without anchoring.
-
-WRITER_PERSONAS = [
-    "You think in ANALOGIES. Find a concrete everyday experience that mirrors this concept. "
-    "The viewer should say 'oh, it's just like when...' The analogy IS the explanation.",
-
-    "You think in SURPRISE. Find the most counterintuitive entry point. "
-    "The viewer should say 'wait, that can't be right...' and then discover it IS right. "
-    "Lead with what's wrong about common intuition.",
-
-    "You think in VISUAL PROOF. The animation itself IS the explanation — "
-    "seeing it happen should be enough to understand. Minimize words, maximize motion. "
-    "The shapes tell the story.",
-
-    "You think in NARRATIVE. There's a protagonist (a number, a shape, a concept) "
-    "that faces a challenge and transforms. Create tension and resolution. "
-    "The viewer should CARE about what happens next.",
-
-    "You think in SIMPLICITY. Find the most minimal, elegant explanation possible. "
-    "Strip away everything non-essential. Three clean steps, not seven cluttered ones. "
-    "The viewer should think 'why didn't anyone explain it this way before?'",
-]
-
-
 # ─── STORY WRITER SYSTEM PROMPT ───
 
 STORY_WRITER_SYSTEM = """You are a world-class educational animation writer.

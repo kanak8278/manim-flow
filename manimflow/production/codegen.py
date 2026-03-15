@@ -7,7 +7,7 @@ from ..core.agent import Agent, call_llm, extract_code
 from ..reference.manim_reference import MANIM_API_REFERENCE
 from ..reference.transitions import get_transition_guide
 from ..reference.domain_knowledge import get_full_design_knowledge
-from ..knowledge.tool import TOOLS, get_knowledge_system_context
+from ..knowledge.tool import get_knowledge_system_context
 
 logger = logging.getLogger(__name__)
 
@@ -86,68 +86,52 @@ def _build_codegen_system_prompt() -> str:
 
 
 async def generate_manim_code(story: dict) -> str:
-    """Generate Manim code with voiceover sync from a story script."""
+    """Generate Manim code from screenplay specs + visual story context.
+
+    The screenplay is the PRIMARY source — structured shots with elements,
+    animations, narration with bookmarks. The visual story provides creative
+    context for understanding intent.
+    """
     target_duration = story.get("duration_target", 120)
+    title = story.get("title", "")
+    screenplay_context = story.get("_screenplay_context", "")
+    visual_story = story.get("_visual_story", "")
 
-    # Include design system and screenplay if available
-    design_context = story.pop("_design_context", "")
-    screenplay_context = story.pop("_screenplay_context", "")
-
-    # Build narration hints
-    scene_hints = []
-    for scene in story.get("scenes", []):
-        if isinstance(scene, dict):
-            name = scene.get("name", "scene")
-            narration = scene.get("narration", "")
-            visual = scene.get("visual", scene.get("visual_description", ""))
-            if isinstance(visual, str):
-                visual = visual[:80]
-            scene_hints.append(f"  Scene '{name}': narration=\"{narration[:100]}\" visual=\"{visual}\"")
-
-    user_prompt = (
-        f"Generate a VoiceoverScene (~{target_duration}s) for this story:\n\n"
-        + json.dumps(story, indent=2)
-    )
+    # Screenplay is the spec, visual story is context
+    user_prompt = f"TITLE: {title}\nTARGET DURATION: ~{target_duration}s\n\n"
 
     if screenplay_context:
-        user_prompt += f"\n\n{screenplay_context}"
-    elif design_context:
-        user_prompt += f"\n\n{design_context}"
+        user_prompt += (
+            f"{screenplay_context}\n\n"
+            f"Implement EXACTLY as specified above. Each shot becomes a "
+            f"`with self.voiceover(text=...)` block. Use the narration text "
+            f"(including the <bookmark> tags) from each shot as the voiceover text. "
+            f"Use self.wait_until_bookmark() to sync animations to narration.\n\n"
+        )
 
-    user_prompt += (
-        "\n\nSCENE NARRATION:\n" + "\n".join(scene_hints)
-        + "\n\nCRITICAL REMINDERS:"
-        "\n- Use VoiceoverScene with EdgeTTSService(transcription_model='base')"
-        "\n- Every shape must be a labeled concept card or diagram element"
-        "\n- Use make_card() pattern for entities, Arrow() for relationships"
-        "\n- Maximum 4 elements on screen at once"
-        "\n- FadeOut everything between scenes"
-        "\n- Progressive disclosure: one element at a time"
-        "\n- ASCII only, no MathTex"
-        "\n\nReturn ONLY Python code."
-    )
+    if visual_story:
+        user_prompt += (
+            f"VISUAL STORY (for creative context — the screenplay above is the spec):\n"
+            f"{visual_story}\n\n"
+        )
 
-    agent = Agent(
-        system_prompt=_build_codegen_system_prompt(),
-        tools=TOOLS,
-    )
+    user_prompt += "Return ONLY Python code. No markdown."
+
+    agent = Agent(system_prompt=_build_codegen_system_prompt())
     agent.add_user_message(user_prompt)
-    response = await agent.run(max_tool_rounds=3)
-    return extract_code(response)
+    content, _, _ = await agent.call()
+    return extract_code(Agent.extract_text(content))
 
 
 async def fix_manim_code(code: str, error: str) -> str:
-    """Fix broken Manim code with knowledge base access."""
+    """Fix broken Manim code."""
     system = (
         _build_codegen_system_prompt()
         + "\n\nFix the broken code. Return ONLY complete Python."
     )
     user_prompt = "Fix:\n```python\n" + code + "\n```\nERROR:\n" + error + "\n\nReturn ONLY code."
 
-    agent = Agent(
-        system_prompt=system,
-        tools=TOOLS,
-    )
+    agent = Agent(system_prompt=system)
     agent.add_user_message(user_prompt)
-    response = await agent.run(max_tool_rounds=2)
-    return extract_code(response)
+    content, _, _ = await agent.call()
+    return extract_code(Agent.extract_text(content))

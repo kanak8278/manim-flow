@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from ..core.agent import Agent
 from ..core import tracing
 from ..prompts.writers_room import (
-    WRITER_PERSONAS,
     STORY_WRITER_SYSTEM,
     STORY_REVIEWER_SYSTEM,
 )
@@ -68,14 +67,10 @@ def _extract_selected_story(response: str) -> str:
 # ─── CORE FUNCTIONS ───
 
 @tracing.observe()
-async def _write_single_story(topic: str, audience: str, persona: str) -> Agent:
-    """Write one story with a specific creative persona.
-
-    Returns the Agent (with conversation history) so we can continue it for revision.
-    """
+async def _write_single_story(topic: str, audience: str) -> Agent:
+    """Write one story. Returns the Agent (with conversation history) for revision."""
     agent = Agent(system_prompt=STORY_WRITER_SYSTEM)
     agent.add_user_message(
-        f"YOUR CREATIVE LENS: {persona}\n\n"
         f"Write a detailed story for this educational animation video:\n\n"
         f"TOPIC: {topic}\n"
         f"AUDIENCE: {audience}\n\n"
@@ -97,12 +92,10 @@ async def write_stories(
 ) -> list[Agent]:
     """Run N independent story writers in parallel.
 
-    Returns list of Agent objects (with conversation history) for potential revision.
+    Each writer starts from scratch with no anchoring. High temperature
+    and independent calls produce natural variety.
     """
-    tasks = [
-        _write_single_story(topic, audience, WRITER_PERSONAS[i % len(WRITER_PERSONAS)])
-        for i in range(n)
-    ]
+    tasks = [_write_single_story(topic, audience) for _ in range(n)]
     agents = await asyncio.gather(*tasks)
     return list(agents)
 

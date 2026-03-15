@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 from ..core.agent import Agent
 from ..core import tracing
+from ..core.config import MAX_TOKENS_DESIGN
 from ..prompts.design_system import DESIGN_SYSTEM_SYSTEM
 
 
@@ -40,7 +41,7 @@ async def design_story(title: str, story_text: str) -> DesignedStory:
     Returns:
         DesignedStory with design_rules and visual_story
     """
-    agent = Agent(system_prompt=DESIGN_SYSTEM_SYSTEM)
+    agent = Agent(system_prompt=DESIGN_SYSTEM_SYSTEM, max_tokens=MAX_TOKENS_DESIGN)
     agent.add_user_message(
         f"TITLE: {title}\n\n"
         f"STORY:\n{story_text}\n\n"

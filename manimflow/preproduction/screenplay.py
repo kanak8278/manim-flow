@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass, field
 from ..core.agent import Agent, extract_json
 from ..core import tracing
+from ..core.config import MAX_TOKENS_SCREENPLAY, SCREENPLAY_MAX_TOOL_ROUNDS
 from ..knowledge.tool import TOOLS, get_knowledge_context_screenplay
 from ..prompts.screenplay import SCREENPLAY_SYSTEM
 from .screenplay_validator import validate_screenplay as _validate, StructuralIssue
@@ -135,7 +136,7 @@ async def write_screenplay(
     agent = Agent(
         system_prompt=system,
         tools=TOOLS,
-        enable_thinking=True,
+        max_tokens=MAX_TOKENS_SCREENPLAY,
     )
 
     # ── First pass: generate full screenplay ──
@@ -155,7 +156,7 @@ async def write_screenplay(
         f"Return ONLY valid JSON."
     )
 
-    response = await agent.run(max_tool_rounds=6)
+    response = await agent.run(max_tool_rounds=SCREENPLAY_MAX_TOOL_ROUNDS)
     data = extract_json(response)
     agent.add_assistant_message(response)
 
