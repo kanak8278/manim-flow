@@ -48,9 +48,7 @@ def render_scene(
         capture_output=True,
         text=True,
         timeout=300,
-        cwd=os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        ),
+        cwd=output_dir,
         env=env,
     )
 
