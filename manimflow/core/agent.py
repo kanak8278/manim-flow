@@ -297,12 +297,18 @@ class Agent:
         ),
     )
     async def _api_call(self, request: dict):
-        """Make the API call. Retries on transient errors."""
+        """Make the API call with streaming to handle long Opus requests."""
         use_beta = "betas" in request
-        if use_beta:
-            return await asyncio.to_thread(self.client.beta.messages.create, **request)
-        else:
-            return await asyncio.to_thread(self.client.messages.create, **request)
+
+        def _stream_call():
+            if use_beta:
+                with self.client.beta.messages.stream(**request) as stream:
+                    return stream.get_final_message()
+            else:
+                with self.client.messages.stream(**request) as stream:
+                    return stream.get_final_message()
+
+        return await asyncio.to_thread(_stream_call)
 
     # ── Message management ──────────────────────────────────────
 
